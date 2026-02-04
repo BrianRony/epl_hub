@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import { getPosts, getClubs } from './services/api';
+import { getPosts, getClubs, getUser, logout, toggleBookmark } from './services/api';
 import NewsCard from './components/NewsCard';
 import Header from './components/Header';
 import Pagination from './components/Pagination';
+import AuthModal from './components/AuthModal';
+import CommentsModal from './components/CommentsModal';
 
 export default function App() {
   const [posts, setPosts] = useState([]);
@@ -12,6 +14,14 @@ export default function App() {
   const [prevPage, setPrevPage] = useState(null);
   const [loading, setLoading] = useState(true);
   
+  // Auth & User State
+  const [user, setUser] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  // Interaction State
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
+  const [activePost, setActivePost] = useState(null);
+
   // Track current state for interval to use
   const stateRef = useRef({ selectedClub, posts });
   stateRef.current = { selectedClub, posts };
@@ -32,38 +42,65 @@ export default function App() {
     if (!background) setLoading(false);
   };
 
+  // Check Auth Status
+  const checkUser = async () => {
+      const userData = await getUser();
+      setUser(userData);
+  }
+
   // Initial load: Fetch clubs AND news
   useEffect(() => {
     const init = async () => {
       const clubsData = await getClubs();
       setClubs(clubsData.results || clubsData);
-      loadNews();
+      await loadNews();
+      await checkUser();
     };
     init();
 
     // Auto-refresh every 60 seconds
     const intervalId = setInterval(() => {
-      // Only refresh if we are on the first page (no prevPage)
-      // We read from ref to get current value inside closure
-      // if (!stateRef.current.prevPage) { // Actually simpler to just refresh current view
          loadNews(null, stateRef.current.selectedClub, true);
-      // }
     }, 60000);
 
     return () => clearInterval(intervalId);
   }, []);
 
-  // Handle Filter Click
+  // Handlers
   const handleFilter = (slug) => {
-    // If clicking same button, toggle off (null)
-    // If clicking "Rest of League" (premier-league), select it
-    // If clicking Top 5, select it
     const newClub = selectedClub === slug ? null : slug;
-    
     setSelectedClub(newClub);
     setNextPage(null); 
     setPrevPage(null);
     loadNews(null, newClub); 
+  };
+
+  const handleLoginSuccess = async () => {
+      await checkUser();
+  };
+
+  const handleLogout = async () => {
+      await logout();
+      setUser(null);
+  };
+
+  const handleCommentClick = (post) => {
+      setActivePost(post);
+      setIsCommentsModalOpen(true);
+  };
+
+  const handleBookmarkClick = async (post) => {
+      if (!user) {
+          setIsAuthModalOpen(true);
+          return;
+      }
+      try {
+          await toggleBookmark(post.id);
+          alert(`Saved "${post.title}" to bookmarks!`);
+      } catch (e) {
+          console.error(e);
+          alert("Could not save bookmark.");
+      }
   };
 
   return (
@@ -71,7 +108,10 @@ export default function App() {
       <Header 
         clubs={clubs} 
         selectedClub={selectedClub} 
-        onFilterChange={handleFilter} 
+        onFilterChange={handleFilter}
+        user={user}
+        onLogin={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       <main className="container mx-auto px-4 py-8">
@@ -83,7 +123,12 @@ export default function App() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {posts.map((post) => (
-                <NewsCard key={post.id} post={post} />
+                <NewsCard 
+                    key={post.id} 
+                    post={post} 
+                    onComment={handleCommentClick}
+                    onBookmark={handleBookmarkClick}
+                />
               ))}
             </div>
 
@@ -101,6 +146,21 @@ export default function App() {
           </>
         )}
       </main>
+
+      {/* Modals */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      <CommentsModal
+        isOpen={isCommentsModalOpen}
+        onClose={() => setIsCommentsModalOpen(false)}
+        post={activePost}
+        user={user}
+      />
+
     </div>
   );
 }

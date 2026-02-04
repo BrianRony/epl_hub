@@ -6,59 +6,43 @@ from django.utils import timezone
 from django.db.models import Q
 from news.models import Club, Post
 
-# 1️⃣ RSS structure (multiple sources per club)
-RSS_FEEDS = {
-    'arsenal': {
-        'official': ['https://www.arsenal.com/rss-feeds/news'],
-        'mainstream': [
-            'https://www.skysports.com/rss/11670',
-            'https://feeds.bbci.co.uk/sport/football/teams/arsenal/rss.xml',
-            'https://www.theguardian.com/football/arsenal/rss'
-        ],
-    },
-    'chelsea': {
-        'official': ['https://www.chelseafc.com/en/news/rss'],
-        'mainstream': [
-            'https://www.skysports.com/rss/11668',
-            'https://feeds.bbci.co.uk/sport/football/teams/chelsea/rss.xml',
-            'https://www.theguardian.com/football/chelsea/rss'
-        ],
-    },
-    'liverpool': {
-        'official': ['https://www.liverpoolfc.com/news.rss'],
-        'mainstream': [
-            'https://www.skysports.com/rss/11669',
-            'https://feeds.bbci.co.uk/sport/football/teams/liverpool/rss.xml',
-            'https://www.theguardian.com/football/liverpool/rss'
-        ],
-    },
-    'manchester-city': {
-        'official': ['https://www.mancity.com/rss/news'],
-        'mainstream': [
-            'https://www.skysports.com/rss/11679',
-            'https://feeds.bbci.co.uk/sport/football/teams/manchester-city/rss.xml',
-            'https://www.theguardian.com/football/manchester-city/rss'
-        ],
-    },
-    'manchester-united': {
-        'official': ['https://www.manutd.com/en/rss/news-and-features'],
-        'mainstream': [
-            'https://www.skysports.com/rss/11667',
-            'https://feeds.bbci.co.uk/sport/football/teams/manchester-united/rss.xml',
-            'https://www.theguardian.com/football/manchester-united/rss'
-        ],
-    },
-    'tottenham-hotspur': {
-        'official': ['https://www.tottenhamhotspur.com/rss/news/'],
-        'mainstream': [
-            'https://www.skysports.com/rss/11675',
-            'https://feeds.bbci.co.uk/sport/football/teams/tottenham-hotspur/rss.xml',
-            'https://www.theguardian.com/football/tottenham-hotspur/rss'
-        ],
-    },
+# Configuration for URL generation
+# Format: 'slug': {'sky_id': '12345', 'guardian_tag': 'slug'}
+# BBC feed is always: https://feeds.bbci.co.uk/sport/football/teams/{slug}/rss.xml
+# Guardian feed is: https://www.theguardian.com/football/{guardian_tag}/rss
+# Sky feed is: https://www.skysports.com/rss/{sky_id}
+
+CLUB_CONFIG = {
+    # Big 6
+    'arsenal': {'sky': '11670', 'guardian': 'arsenal', 'official': 'https://www.arsenal.com/rss-feeds/news'},
+    'chelsea': {'sky': '11668', 'guardian': 'chelsea', 'official': 'https://www.chelseafc.com/en/news/rss'},
+    'liverpool': {'sky': '11669', 'guardian': 'liverpool', 'official': 'https://www.liverpoolfc.com/news.rss'},
+    'manchester-city': {'sky': '11679', 'guardian': 'manchester-city', 'official': 'https://www.mancity.com/rss/news'},
+    'manchester-united': {'sky': '11667', 'guardian': 'manchester-united', 'official': 'https://www.manutd.com/en/rss/news-and-features'},
+    'tottenham-hotspur': {'sky': '11675', 'guardian': 'tottenham-hotspur', 'official': 'https://www.tottenhamhotspur.com/rss/news/'},
+
+    # The Challengers
+    'aston-villa': {'sky': '11677', 'guardian': 'aston-villa'},
+    'newcastle': {'sky': '11678', 'guardian': 'newcastleunited', 'bbc_slug': 'newcastle-united'}, # BBC slug differs slightly
+    'west-ham': {'sky': '11685', 'guardian': 'westhamunited', 'bbc_slug': 'west-ham-united'},
+    'everton': {'sky': '11671', 'guardian': 'everton'},
+    'wolves': {'sky': '11699', 'guardian': 'wolverhampton-wanderers', 'bbc_slug': 'wolverhampton-wanderers'},
+
+    # The Rest
+    'brighton': {'sky': '11741', 'guardian': 'brighton', 'bbc_slug': 'brighton-and-hove-albion'},
+    'brentford': {'sky': '11715', 'guardian': 'brentford'},
+    'crystal-palace': {'sky': '11700', 'guardian': 'crystalpalace'},
+    'fulham': {'sky': '11681', 'guardian': 'fulham'},
+    'nottingham-forest': {'sky': '11727', 'guardian': 'nottinghamforest'},
+    'bournemouth': {'sky': '11734', 'guardian': 'bournemouth'},
+    'leicester': {'sky': '11712', 'guardian': 'leicestercity', 'bbc_slug': 'leicester-city'},
+    'southampton': {'sky': '11707', 'guardian': 'southampton'},
+    'ipswich': {'sky': '11739', 'guardian': 'ipswich-town', 'bbc_slug': 'ipswich-town'},
+
+    # General
+    'premier-league': {'sky': '11065', 'guardian': 'premierleague', 'bbc_slug': 'premier-league', 'no_bbc_team_path': True} 
 }
 
-# 2️⃣ Source credibility map (opinionated + realistic)
 SOURCE_SCORES = {
     'official': 5,
     'mainstream': 3,
@@ -66,69 +50,88 @@ SOURCE_SCORES = {
 }
 
 class Command(BaseCommand):
-    help = 'Fetch football news from multiple RSS sources, deduplicate, and rank posts.'
+    help = 'Fetch football news from multiple RSS sources dynamically.'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS('Starting news fetch...'))
+        self.stdout.write(self.style.SUCCESS('Starting dynamic news fetch...'))
 
-        for slug, sources in RSS_FEEDS.items():
+        for slug, config in CLUB_CONFIG.items():
             try:
                 club = Club.objects.get(slug=slug)
             except Club.DoesNotExist:
-                self.stdout.write(self.style.WARNING(f'Club "{slug}" not found. Skipping.'))
+                # self.stdout.write(self.style.WARNING(f'Club "{slug}" not found in DB. Run migrations.'))
                 continue
 
-            self.stdout.write(f' Fetching news for {club.name}')
+            self.stdout.write(f' Fetching for {club.name}...')
+            
+            # 1. Build Feed List dynamically
+            feeds = []
 
-            for source_type, feeds in sources.items():
-                credibility = SOURCE_SCORES.get(source_type, 1)
-                
-                for feed_url in feeds:
-                    try:
-                        feed = feedparser.parse(feed_url)
-                    except Exception as e:
-                        self.stdout.write(self.style.ERROR(f'  Failed to parse {feed_url}: {e}'))
-                        continue
+            # Official
+            if 'official' in config:
+                feeds.append(('official', config['official']))
 
-                    for entry in feed.entries:
-                        link = entry.get('link')
-                        title = entry.get('title', '').strip()
+            # Sky Sports
+            if 'sky' in config:
+                feeds.append(('mainstream', f"https://www.skysports.com/rss/{config['sky']}"))
 
-                        if not link or not title:
-                            continue
+            # Guardian
+            if 'guardian' in config:
+                feeds.append(('mainstream', f"https://www.theguardian.com/football/{config['guardian']}/rss"))
 
-                        # 🔒 Deduplication (link OR very similar title for the same club)
-                        # We use title__iexact for a basic check, in production fuzzy matching might be better
-                        if Post.objects.filter(
-                            Q(link=link) | Q(title__iexact=title, club=club)
-                        ).exists():
-                            continue
+            # BBC
+            # Default BBC slug matches our DB slug unless override provided
+            bbc_slug = config.get('bbc_slug', slug)
+            if config.get('no_bbc_team_path'):
+                 feeds.append(('mainstream', "https://feeds.bbci.co.uk/sport/football/premier-league/rss.xml"))
+            else:
+                 feeds.append(('mainstream', f"https://feeds.bbci.co.uk/sport/football/teams/{bbc_slug}/rss.xml"))
 
-                        # 📅 Date handling
-                        if hasattr(entry, 'published_parsed'):
-                            published = timezone.make_aware(
-                                datetime.fromtimestamp(time.mktime(entry.published_parsed))
-                            )
-                        else:
-                            published = timezone.now()
-
-                        # 🧮 Ranking score (credibility + freshness)
-                        # Score = Credibility * (1 / Age in Hours)
-                        # Newer posts from credible sources score highest
-                        age_hours = max((timezone.now() - published).total_seconds() / 3600, 0.1) # 0.1 min to avoid div by zero
-                        score = credibility * (10 / age_hours) # Multiplied by 10 to keep numbers readable
-
-                        Post.objects.create(
-                            club=club,
-                            title=title,
-                            content=entry.get('summary', ''),
-                            link=link,
-                            publication_date=published,
-                            source=source_type,
-                            credibility_score=credibility,
-                            rank_score=score
-                        )
-                        
-                        self.stdout.write(f'  + [{source_type.upper()}] {title[:70]}...')
+            # 2. Process Feeds
+            for source_type, feed_url in feeds:
+                self.process_feed(club, source_type, feed_url)
 
         self.stdout.write(self.style.SUCCESS(' Finished fetching news.'))
+
+    def process_feed(self, club, source_type, feed_url):
+        credibility = SOURCE_SCORES.get(source_type, 1)
+        try:
+            feed = feedparser.parse(feed_url)
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'  Failed: {feed_url}'))
+            return
+
+        for entry in feed.entries:
+            link = entry.get('link')
+            title = entry.get('title', '').strip()
+
+            if not link or not title:
+                continue
+
+            # Deduplication
+            if Post.objects.filter(Q(link=link) | Q(title__iexact=title, club=club)).exists():
+                continue
+
+            # Date handling
+            if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                published = timezone.make_aware(
+                    datetime.fromtimestamp(time.mktime(entry.published_parsed))
+                )
+            else:
+                published = timezone.now()
+
+            # Ranking
+            age_hours = max((timezone.now() - published).total_seconds() / 3600, 0.1)
+            score = credibility * (10 / age_hours)
+
+            Post.objects.create(
+                club=club,
+                title=title,
+                content=entry.get('summary', ''),
+                link=link,
+                publication_date=published,
+                source=source_type,
+                credibility_score=credibility,
+                rank_score=score
+            )
+            self.stdout.write(f'   + {title[:50]}...')

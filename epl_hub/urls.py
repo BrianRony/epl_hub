@@ -1,7 +1,12 @@
-from django.contrib import admin                                           
-from django.urls import path, include                                      
-                                                                                
-urlpatterns = [                                                            
-         path('admin/', admin.site.urls),                                       
-         path('api/', include('news.urls')),    
-     ] 
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include('news.urls')),
+    
+    # Auth Endpoints
+    path('api/auth/', include('dj_rest_auth.urls')),
+    path('api/auth/registration/', include('dj_rest_auth.registration.urls')),
+    path('accounts/', include('allauth.urls')), # For social auth callbacks
+]

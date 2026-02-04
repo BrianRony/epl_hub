@@ -3,6 +3,7 @@ import React from 'react';
 // Returns a Tailwind border color class
 const getClubBorderColor = (slug) => {
   const colors = {
+    // Big 6
     arsenal: "border-red-600",
     "aston-villa": "border-red-900",
     chelsea: "border-blue-700",
@@ -14,13 +15,28 @@ const getClubBorderColor = (slug) => {
     spurs: "border-blue-900",
     "west-ham": "border-red-800",
     wolves: "border-yellow-500",
+
+    // Rest of League
+    brighton: "border-blue-400",
+    brentford: "border-red-500",
+    "crystal-palace": "border-blue-800",
+    fulham: "border-slate-800",
+    "nottingham-forest": "border-red-600",
+    bournemouth: "border-red-700",
+    leicester: "border-blue-600",
+    southampton: "border-red-500",
+    ipswich: "border-blue-500",
+    
+    // General
+    "premier-league": "border-purple-600",
   };
-  return colors[slug] || "border-indigo-500";
+  return colors[slug] || "border-slate-400";
 };
 
 // Returns a nice light background for the card header/tag
 const getClubLightBg = (slug) => {
   const colors = {
+    // Big 6 + Challengers
     arsenal: "bg-red-50 text-red-700",
     "aston-villa": "bg-red-50 text-red-900",
     chelsea: "bg-blue-50 text-blue-700",
@@ -32,20 +48,32 @@ const getClubLightBg = (slug) => {
     spurs: "bg-blue-50 text-blue-900",
     "west-ham": "bg-red-50 text-red-800",
     wolves: "bg-yellow-50 text-yellow-800",
+
+    // Rest
+    brighton: "bg-blue-50 text-blue-600",
+    brentford: "bg-red-50 text-red-600",
+    "crystal-palace": "bg-blue-50 text-blue-800",
+    fulham: "bg-slate-100 text-slate-800",
+    "nottingham-forest": "bg-red-50 text-red-700",
+    bournemouth: "bg-red-50 text-red-800",
+    leicester: "bg-blue-50 text-blue-700",
+    southampton: "bg-red-50 text-red-600",
+    ipswich: "bg-blue-50 text-blue-600",
+
+    "premier-league": "bg-purple-50 text-purple-700",
   };
-  return colors[slug] || "bg-indigo-50 text-indigo-700";
+  return colors[slug] || "bg-slate-100 text-slate-600";
 };
 
 // HTML Stripping Helper
 const stripHtml = (html) => {
     if (!html) return "";
-    // Create a temporary element to let the browser parse and extract text
     const tmp = document.createElement("DIV");
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
 };
 
-export default function NewsCard({ post }) {
+export default function NewsCard({ post, onComment, onBookmark }) {
   const clubSlug = post.club.slug || "";
   const borderColor = getClubBorderColor(clubSlug);
   const clubTagStyle = getClubLightBg(clubSlug);
@@ -70,30 +98,21 @@ export default function NewsCard({ post }) {
   // Clean the content preview
   const plainTextContent = stripHtml(post.content);
 
-  // Fallback for link if missing or invalid
-  const handleLinkClick = (e) => {
-    if (!post.link) {
+  const handleAction = (e, action) => {
       e.preventDefault();
-      alert("Source link not available");
-    }
-  };
+      e.stopPropagation();
+      action(post);
+  }
 
   return (
-    <a 
-      href={post.link || "#"} 
-      target={post.link ? "_blank" : "_self"}
-      rel="noopener noreferrer" 
-      onClick={handleLinkClick}
-      className="group block h-full focus:outline-none cursor-pointer"
-    >
-      <div className={`
+    <div className={`
         relative h-full bg-white rounded-2xl overflow-hidden
         border-t-[6px] ${borderColor}
         shadow-[0_2px_8px_rgba(0,0,0,0.04)]
         hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)]
         hover:-translate-y-1
         transition-all duration-300 ease-out
-        flex flex-col
+        flex flex-col group
       `}>
         
         {/* Card Header: Club & Date */}
@@ -106,31 +125,58 @@ export default function NewsCard({ post }) {
             </span>
         </div>
 
-        {/* Main Content */}
-        <div className="px-6 py-2 flex-1">
+        {/* Main Content (Clickable Link) */}
+        <a 
+            href={post.link || "#"} 
+            target={post.link ? "_blank" : "_self"}
+            rel="noopener noreferrer" 
+            className="px-6 py-2 flex-1 block focus:outline-none"
+        >
           <h3 className="text-lg font-bold text-slate-900 leading-snug mb-3 group-hover:text-blue-700 transition-colors">
             {post.title}
           </h3>
           <p className="text-slate-500 text-sm leading-relaxed line-clamp-3 mb-4">
             {plainTextContent}
           </p>
-        </div>
+        </a>
 
-        {/* Footer */}
+        {/* Footer Actions */}
         <div className="px-6 py-4 mt-auto border-t border-slate-50 flex items-center justify-between bg-white">
-             {/* Source Badge */}
-             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${badgeStyle}`}>
-                {post.source}
-            </span>
+             <div className="flex gap-3">
+                 <button 
+                    onClick={(e) => handleAction(e, onComment)}
+                    className="flex items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors"
+                    title="Comments"
+                 >
+                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                     </svg>
+                     <span className="text-xs font-bold">{post.comment_count || 0}</span>
+                 </button>
 
-            <span className="flex items-center text-xs font-bold text-blue-600 uppercase tracking-wider group-hover:translate-x-1 transition-transform duration-300">
+                 <button 
+                    onClick={(e) => handleAction(e, onBookmark)}
+                    className="flex items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors"
+                    title="Bookmark"
+                 >
+                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                     </svg>
+                 </button>
+             </div>
+
+            <a 
+                href={post.link || "#"} 
+                target={post.link ? "_blank" : "_self"}
+                rel="noopener noreferrer"
+                className="flex items-center text-xs font-bold text-blue-600 uppercase tracking-wider group-hover:translate-x-1 transition-transform duration-300"
+            >
                 Read Story
                 <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
-            </span>
+            </a>
         </div>
       </div>
-    </a>
   );
 }

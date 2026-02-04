@@ -21,21 +21,6 @@ Follow these steps to enter the Python virtual environment for this project:
    (venv) user@machine:~/Dev/projects/epl_fan_hub$
    ```
 
-### On Windows:
-
-1. **Open Command Prompt (cmd)** or **PowerShell** and navigate to the project root:
-   ```bash
-   cd C:\path\to\epl_fan_hub
-   ```
-
-2. **Activate the virtual environment**:
-   ```bash
-   venv\Scripts\activate
-   ```
-
-3. **Verify activation** - Your terminal prompt should now show `(venv)` at the beginning
-
----
 
 ## Deactivating the Virtual Environment
 

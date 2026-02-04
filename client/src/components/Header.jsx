@@ -1,30 +1,65 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 const getClubGradient = (slug) => {
   const gradients = {
+    // Big 6 + Challengers
     arsenal: "from-red-600 via-red-500 to-white",
     "aston-villa": "from-red-900 via-blue-800 to-blue-900",
     chelsea: "from-blue-700 via-blue-600 to-white",
     everton: "from-blue-800 via-blue-600 to-white",
     liverpool: "from-red-700 via-red-600 to-red-800",
-    "man-city": "from-sky-300 via-sky-400 to-white",
-    "man-utd": "from-red-700 via-red-600 to-black",
+    "manchester-city": "from-sky-300 via-sky-400 to-white",
+    "manchester-united": "from-red-700 via-red-600 to-black",
     newcastle: "from-black via-gray-800 to-gray-500",
+    "tottenham-hotspur": "from-blue-900 via-gray-100 to-white", 
     spurs: "from-blue-900 via-gray-100 to-white",
     "west-ham": "from-red-800 via-blue-400 to-blue-800",
     wolves: "from-yellow-500 via-yellow-400 to-black",
+
+    // Rest of League
+    brighton: "from-blue-500 via-white to-blue-500",
+    brentford: "from-red-600 via-white to-black",
+    "crystal-palace": "from-blue-700 via-red-600 to-blue-800",
+    fulham: "from-black via-white to-black",
+    "nottingham-forest": "from-red-600 via-red-500 to-white",
+    bournemouth: "from-red-700 via-black to-red-600",
+    leicester: "from-blue-600 via-blue-500 to-white",
+    southampton: "from-red-600 via-white to-red-600",
+    ipswich: "from-blue-600 via-blue-500 to-white",
+    
+    // General
+    "premier-league": "from-purple-900 via-purple-600 to-emerald-400",
   };
   return gradients[slug] || "from-slate-700 to-slate-500";
 };
 
 const getClubTextColor = (slug) => {
    // For active state text color contrast against the gradient
-   const lightText = ['arsenal', 'aston-villa', 'chelsea', 'everton', 'liverpool', 'man-utd', 'newcastle', 'west-ham', 'wolves', 'spurs'];
-   if (slug === 'man-city') return 'text-slate-800'; 
+   const lightText = ['arsenal', 'aston-villa', 'chelsea', 'everton', 'liverpool', 'manchester-united', 'newcastle', 'west-ham', 'wolves', 'tottenham-hotspur', 'spurs', 'nottingham-forest', 'bournemouth', 'crystal-palace', 'brentford', 'leicester', 'ipswich', 'premier-league', 'fulham'];
+   
+   if (['manchester-city', 'brighton', 'southampton'].includes(slug)) return 'text-slate-900'; 
+   
    return 'text-white';
 }
 
-export default function Header({ clubs, selectedClub, onFilterChange }) {
+export default function Header({ clubs, selectedClub, onFilterChange, user, onLogin, onLogout }) {
+  // 1. Prioritize and separate clubs
+  const topSlugs = ['manchester-city', 'chelsea', 'arsenal', 'manchester-united', 'liverpool'];
+  
+  const topTeams = useMemo(() => {
+    const clubMap = new Map(clubs.map(c => [c.slug, c]));
+    const top = [];
+    topSlugs.forEach(slug => {
+        if (clubMap.has(slug)) {
+            top.push(clubMap.get(slug));
+        }
+    });
+    return top;
+  }, [clubs]);
+
+  const isRestActive = selectedClub && !topSlugs.includes(selectedClub);
+
+  
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
       <div className="container mx-auto px-4 py-4 md:py-6">
@@ -35,28 +70,44 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
             </h1>
             <p className="text-slate-500 text-sm font-medium tracking-wide mt-1">THE PREMIER LEAGUE PULSE</p>
           </div>
+
+          <div className="hidden md:flex items-center gap-3">
+            <a 
+              href="https://www.premierleague.com/tables" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors"
+            >
+              <span className="text-lg">📊</span> PL Table
+            </a>
+
+            {user ? (
+                <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-slate-700">Hi, {user.username}</span>
+                    <button 
+                        onClick={onLogout}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-bold transition-colors"
+                    >
+                        Logout
+                    </button>
+                </div>
+            ) : (
+                <button 
+                    onClick={onLogin}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors shadow-md hover:shadow-lg"
+                >
+                    Login / Sign Up
+                </button>
+            )}
+          </div>
         </div>
 
         {/* Filter Scroll Container */}
         <div className="relative group">
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide mask-image-linear-to-r">
+          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide mask-image-linear-to-r items-center">
             
-            {/* 'All' Button */}
-            <button
-              onClick={() => onFilterChange(null)}
-              className={`
-                flex-shrink-0 px-6 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 transform hover:-translate-y-0.5
-                ${selectedClub === null 
-                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20 ring-2 ring-slate-900 ring-offset-2" 
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                }
-              `}
-            >
-              All Feeds
-            </button>
-
-            {/* Club Buttons */}
-            {clubs.map((club) => {
+            {/* Top 5 Teams */}
+            {topTeams.map((club) => {
               const isActive = selectedClub === club.slug;
               const gradient = getClubGradient(club.slug);
               const textColor = isActive ? getClubTextColor(club.slug) : 'text-slate-600';
@@ -77,6 +128,24 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
                 </button>
               );
             })}
+
+            {/* Separator */}
+            <div className="w-[1px] h-8 bg-slate-300 mx-1"></div>
+
+            {/* Rest of League Button */}
+            <button
+                onClick={() => onFilterChange('premier-league')}
+                className={`
+                    flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 border
+                    ${selectedClub === 'premier-league'
+                        ? "bg-slate-800 text-white border-slate-800 shadow-md"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-400 hover:text-slate-700"
+                    }
+                `}
+            >
+                Rest of League
+            </button>
+            
           </div>
           
           {/* Fade effect on right for scrolling indication */}
