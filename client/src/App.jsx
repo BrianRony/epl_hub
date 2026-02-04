@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { getPosts, getClubs } from './services/api';
 import NewsCard from './components/NewsCard';
 import Header from './components/Header';
@@ -11,40 +11,59 @@ export default function App() {
   const [nextPage, setNextPage] = useState(null);
   const [prevPage, setPrevPage] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Track current state for interval to use
+  const stateRef = useRef({ selectedClub, posts });
+  stateRef.current = { selectedClub, posts };
 
   // Load news with optional club filter
-  const loadNews = async (url, club = selectedClub) => {
-    setLoading(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const loadNews = async (url, club = selectedClub, background = false) => {
+    if (!background) setLoading(true);
+    if (!background) window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // If no URL is provided (initial load or filter change), use default
     const apiCallUrl = url || undefined;
-
     const data = await getPosts(apiCallUrl, club);
 
-    setPosts(data.results || []);
-    setNextPage(data.next);
-    setPrevPage(data.previous);
-    setLoading(false);
+    if (data.results) {
+      setPosts(data.results);
+      setNextPage(data.next);
+      setPrevPage(data.previous);
+    }
+    if (!background) setLoading(false);
   };
 
   // Initial load: Fetch clubs AND news
   useEffect(() => {
     const init = async () => {
       const clubsData = await getClubs();
-      setClubs(clubsData.results || clubsData); // Handle if clubs are paginated or list
+      setClubs(clubsData.results || clubsData);
       loadNews();
     };
     init();
+
+    // Auto-refresh every 60 seconds
+    const intervalId = setInterval(() => {
+      // Only refresh if we are on the first page (no prevPage)
+      // We read from ref to get current value inside closure
+      // if (!stateRef.current.prevPage) { // Actually simpler to just refresh current view
+         loadNews(null, stateRef.current.selectedClub, true);
+      // }
+    }, 60000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Handle Filter Click
   const handleFilter = (slug) => {
-    const newClub = selectedClub === slug ? null : slug; // Toggle off if clicked again
+    // If clicking same button, toggle off (null)
+    // If clicking "Rest of League" (premier-league), select it
+    // If clicking Top 5, select it
+    const newClub = selectedClub === slug ? null : slug;
+    
     setSelectedClub(newClub);
-    setNextPage(null); // Reset pagination
+    setNextPage(null); 
     setPrevPage(null);
-    loadNews(null, newClub); // Fetch page 1 with new filter
+    loadNews(null, newClub); 
   };
 
   return (
