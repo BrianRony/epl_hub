@@ -1,17 +1,17 @@
 from rest_framework import viewsets                                          
+from django_filters.rest_framework import DjangoFilterBackend                
 from .models import Club, Post                                               
 from .serializers import ClubSerializer, PostSerializer                      
                                                                                 
 class ClubViewSet(viewsets.ReadOnlyModelViewSet):                            
-       """                                                                      
-       API endpoint that allows clubs to be viewed.                             
-       """                                                                      
        queryset = Club.objects.all()                                            
        serializer_class = ClubSerializer                                        
                                                                                 
 class PostViewSet(viewsets.ReadOnlyModelViewSet):                            
-       """                                                                      
-       API endpoint that allows posts to be viewed.                             
-       """                                                                      
-       queryset = Post.objects.all().order_by('-publication_date')     
-       serializer_class = PostSerializer 
+       queryset = Post.objects.all() # Ordering is already handled by the Model Meta                                                                           
+       serializer_class = PostSerializer                                        
+                                                                                
+       # Enable filtering                                                       
+       filter_backends = [DjangoFilterBackend]                                  
+       # Allow filtering by these fields                                        
+       filterset_fields = ['club__slug', 'source'] 
