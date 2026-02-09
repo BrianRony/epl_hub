@@ -73,10 +73,15 @@ class Command(BaseCommand):
             config = CLUB_CONFIG.get(slug)
             if not config: continue
 
-            try:
-                club = Club.objects.get(slug=slug)
-            except Club.DoesNotExist:
-                continue
+            # Auto-create club if missing (Fixes empty DB issue on Render)
+            club_name = slug.replace('-', ' ').title().replace('And', '&')
+            club, created = Club.objects.get_or_create(
+                slug=slug, 
+                defaults={'name': club_name}
+            )
+            
+            if created:
+                self.stdout.write(self.style.WARNING(f' Created missing club: {club.name}'))
 
             self.stdout.write(f' Fetching for {club.name}...')
             
