@@ -42,7 +42,7 @@ const getClubTextColor = (slug) => {
    return 'text-white';
 }
 
-export default function Header({ clubs, selectedClub, onFilterChange, user, onLogin, onLogout }) {
+export default function Header({ clubs, selectedClub, onFilterChange }) {
   // 1. Prioritize and separate clubs
   const topSlugs = ['manchester-city', 'chelsea', 'arsenal', 'manchester-united', 'liverpool'];
   
@@ -80,25 +80,6 @@ export default function Header({ clubs, selectedClub, onFilterChange, user, onLo
             >
               <span className="text-lg">📊</span> PL Table
             </a>
-
-            {user ? (
-                <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-700">Hi, {user.username}</span>
-                    <button 
-                        onClick={onLogout}
-                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-bold transition-colors"
-                    >
-                        Logout
-                    </button>
-                </div>
-            ) : (
-                <button 
-                    onClick={onLogin}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors shadow-md hover:shadow-lg"
-                >
-                    Login / Sign Up
-                </button>
-            )}
           </div>
         </div>
 

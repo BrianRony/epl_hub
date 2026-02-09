@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
-import { getPosts, getClubs, getUser, logout, toggleBookmark } from './services/api';
+import { getPosts, getClubs } from './services/api';
 import NewsCard from './components/NewsCard';
 import Header from './components/Header';
 import Pagination from './components/Pagination';
-import AuthModal from './components/AuthModal';
 import CommentsModal from './components/CommentsModal';
 
 export default function App() {
@@ -13,10 +12,6 @@ export default function App() {
   const [nextPage, setNextPage] = useState(null);
   const [prevPage, setPrevPage] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // Auth & User State
-  const [user, setUser] = useState(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
   // Interaction State
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
@@ -42,19 +37,12 @@ export default function App() {
     if (!background) setLoading(false);
   };
 
-  // Check Auth Status
-  const checkUser = async () => {
-      const userData = await getUser();
-      setUser(userData);
-  }
-
   // Initial load: Fetch clubs AND news
   useEffect(() => {
     const init = async () => {
       const clubsData = await getClubs();
       setClubs(clubsData.results || clubsData);
       await loadNews();
-      await checkUser();
     };
     init();
 
@@ -75,32 +63,9 @@ export default function App() {
     loadNews(null, newClub); 
   };
 
-  const handleLoginSuccess = async () => {
-      await checkUser();
-  };
-
-  const handleLogout = async () => {
-      await logout();
-      setUser(null);
-  };
-
   const handleCommentClick = (post) => {
       setActivePost(post);
       setIsCommentsModalOpen(true);
-  };
-
-  const handleBookmarkClick = async (post) => {
-      if (!user) {
-          setIsAuthModalOpen(true);
-          return;
-      }
-      try {
-          await toggleBookmark(post.id);
-          alert(`Saved "${post.title}" to bookmarks!`);
-      } catch (e) {
-          console.error(e);
-          alert("Could not save bookmark.");
-      }
   };
 
   return (
@@ -109,9 +74,6 @@ export default function App() {
         clubs={clubs} 
         selectedClub={selectedClub} 
         onFilterChange={handleFilter}
-        user={user}
-        onLogin={() => setIsAuthModalOpen(true)}
-        onLogout={handleLogout}
       />
 
       <main className="container mx-auto px-4 py-8">
@@ -127,7 +89,6 @@ export default function App() {
                     key={post.id} 
                     post={post} 
                     onComment={handleCommentClick}
-                    onBookmark={handleBookmarkClick}
                 />
               ))}
             </div>
@@ -148,17 +109,10 @@ export default function App() {
       </main>
 
       {/* Modals */}
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)}
-        onLoginSuccess={handleLoginSuccess}
-      />
-
       <CommentsModal
         isOpen={isCommentsModalOpen}
         onClose={() => setIsCommentsModalOpen(false)}
         post={activePost}
-        user={user}
       />
 
     </div>

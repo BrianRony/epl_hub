@@ -14,13 +14,14 @@ class ClubSerializer(serializers.ModelSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    author_name = serializers.CharField(required=False, allow_blank=True)
     # Post ID is required for creation, but we can make it write-only or handle it differently.
     # By default, ModelSerializer expects 'post' to be a primary key input.
     # The error "NOT NULL constraint failed: news_comment.post_id" means it wasn't extracted from the request data.
     
     class Meta:
         model = Comment
-        fields = ['id', 'user', 'post', 'text', 'created_at']
+        fields = ['id', 'user', 'author_name', 'post', 'text', 'created_at']
         read_only_fields = ['user', 'created_at'] # Removed 'post' from read_only so it can be accepted as input
 
 class BookmarkSerializer(serializers.ModelSerializer):

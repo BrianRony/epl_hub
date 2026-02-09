@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 // Configure axios to send cookies
 axios.defaults.withCredentials = true;
@@ -71,8 +71,12 @@ export const getComments = async (postId) => {
     return response.data;
 };
 
-export const postComment = async (postId, text) => {
-    const response = await axios.post(`${API_URL}/comments/`, { post: postId, text });
+export const postComment = async (postId, text, authorName) => {
+    const payload = { post: postId, text };
+    if (authorName) {
+        payload.author_name = authorName;
+    }
+    const response = await axios.post(`${API_URL}/comments/`, payload);
     return response.data;
 };
 

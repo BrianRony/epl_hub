@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Club, Post, Comment, Bookmark
 from .serializers import ClubSerializer, PostSerializer, CommentSerializer, BookmarkSerializer
+import random
 
 class ClubViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Club.objects.all()
@@ -26,12 +27,20 @@ class PostViewSet(viewsets.ReadOnlyModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.AllowAny]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['post']
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        author_name = self.request.data.get('author_name', '').strip()
+        
+        if not author_name:
+            adjectives = ['Funny', 'Happy', 'Grumpy', 'Sleepy', 'Speedy', 'Lucky', 'Brave', 'Wild', 'Crazy', 'Mysterious']
+            animals = ['Lion', 'Tiger', 'Bear', 'Eagle', 'Shark', 'Panda', 'Wolf', 'Fox', 'Badger', 'Falcon']
+            author_name = f"{random.choice(adjectives)} {random.choice(animals)}"
+        
+        user = self.request.user if self.request.user.is_authenticated else None
+        serializer.save(user=user, author_name=author_name)
 
 class BookmarkViewSet(viewsets.ModelViewSet):
     serializer_class = BookmarkSerializer

@@ -73,7 +73,7 @@ const stripHtml = (html) => {
     return tmp.textContent || tmp.innerText || "";
 };
 
-export default function NewsCard({ post, onComment, onBookmark }) {
+export default function NewsCard({ post, onComment }) {
   const clubSlug = post.club.slug || "";
   const borderColor = getClubBorderColor(clubSlug);
   const clubTagStyle = getClubLightBg(clubSlug);
@@ -152,16 +152,6 @@ export default function NewsCard({ post, onComment, onBookmark }) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                      </svg>
                      <span className="text-xs font-bold">{post.comment_count || 0}</span>
-                 </button>
-
-                 <button 
-                    onClick={(e) => handleAction(e, onBookmark)}
-                    className="flex items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors"
-                    title="Bookmark"
-                 >
-                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                     </svg>
                  </button>
              </div>
 

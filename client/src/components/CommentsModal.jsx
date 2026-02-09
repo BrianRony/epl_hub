@@ -4,6 +4,7 @@ import { getComments, postComment } from '../services/api';
 export default function CommentsModal({ isOpen, onClose, post, user }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [authorName, setAuthorName] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,12 +25,13 @@ export default function CommentsModal({ isOpen, onClose, post, user }) {
     if (!newComment.trim()) return;
 
     try {
-      await postComment(post.id, newComment);
+      await postComment(post.id, newComment, authorName);
       setNewComment('');
-      loadComments(); // Refresh
+      // We keep the author name so they don't have to type it again
+      loadComments(); 
     } catch (error) {
       console.error("Failed to post comment", error);
-      alert("Failed to post comment. Ensure you are logged in.");
+      alert("Failed to post comment. Please try again.");
     }
   };
 
@@ -62,7 +64,9 @@ export default function CommentsModal({ isOpen, onClose, post, user }) {
             comments.map(comment => (
               <div key={comment.id} className="bg-slate-50 p-3 rounded-xl">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-bold text-slate-900">{comment.user?.username || 'Fan'}</span>
+                  <span className="text-xs font-bold text-slate-900">
+                    {comment.author_name || comment.user?.username || 'Fan'}
+                  </span>
                   <span className="text-[10px] font-medium text-slate-400">
                     {new Date(comment.created_at).toLocaleDateString()}
                   </span>
@@ -75,27 +79,33 @@ export default function CommentsModal({ isOpen, onClose, post, user }) {
 
         {/* Input */}
         <div className="p-4 border-t border-slate-100 bg-white rounded-b-2xl">
-          {user ? (
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Share your thoughts..." 
-                className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-              />
-              <button 
-                type="submit"
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors"
-              >
-                Send
-              </button>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Name (Optional)"
+                    className="w-1/3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Share your thoughts..." 
+                    className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                  />
+                  <button 
+                    type="submit"
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors"
+                  >
+                    Send
+                  </button>
+              </div>
+              <div className="text-[10px] text-slate-400 px-2 italic">
+                * Leave name empty to get a cool generated identity!
+              </div>
             </form>
-          ) : (
-            <div className="text-center text-sm text-slate-500">
-              Please <span className="font-bold text-blue-600">log in</span> to join the discussion.
-            </div>
-          )}
         </div>
       </div>
     </div>

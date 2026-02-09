@@ -35,7 +35,8 @@ class Post(BaseModel):
         return self.title
 
 class Comment(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments', null=True, blank=True)
+    author_name = models.CharField(max_length=100, default='Anonymous Fan')
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
     text = models.TextField()
 
@@ -43,7 +44,7 @@ class Comment(BaseModel):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.user.username} on {self.post.title}"
+        return f"{self.author_name} on {self.post.title}"
 
 class Bookmark(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')
