@@ -127,6 +127,13 @@ class Command(BaseCommand):
         if elapsed > 2.0:
             self.stdout.write(self.style.WARNING(f'  Slow fetch ({elapsed:.2f}s): {feed_url}'))
 
+        # Log how many entries found (Debug info)
+        entry_count = len(feed.entries)
+        if entry_count == 0:
+             self.stdout.write(self.style.WARNING(f'  Zero entries found for: {feed_url}'))
+        else:
+             self.stdout.write(f'  Found {entry_count} entries for {feed_url}')
+
         count = 0
         for entry in feed.entries:
             link = entry.get('link')
@@ -137,6 +144,7 @@ class Command(BaseCommand):
 
             # Deduplication check
             if Post.objects.filter(Q(link=link) | Q(title__iexact=title, club=club)).exists():
+                # self.stdout.write(f'   - Skipped (Duplicate): {title[:30]}...')
                 continue
 
             # Date handling
