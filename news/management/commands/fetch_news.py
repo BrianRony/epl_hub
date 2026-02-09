@@ -20,7 +20,7 @@ CLUB_CONFIG = {
     'arsenal': {'sky': '11670', 'guardian': 'arsenal', 'official': 'https://www.arsenal.com/rss-feeds/news'},
     'chelsea': {'sky': '11668', 'guardian': 'chelsea', 'official': 'https://www.chelseafc.com/en/news/rss'},
     'liverpool': {'sky': '11669', 'guardian': 'liverpool', 'official': 'https://www.liverpoolfc.com/news.rss'},
-    'manchester-city': {'sky': '11679', 'guardian': 'manchester-city', 'official': 'https://www.mancity.com/rss/news'},
+    'manchester-city': {'sky': '11679', 'guardian': 'manchester-city'}, # Removed official feed (often blocks/slows down)
     'manchester-united': {'sky': '11667', 'guardian': 'manchester-united', 'official': 'https://www.manutd.com/en/rss/news-and-features'},
     'tottenham-hotspur': {'sky': '11675', 'guardian': 'tottenham-hotspur', 'official': 'https://www.tottenhamhotspur.com/rss/news/'},
 
@@ -58,16 +58,16 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Starting dynamic news fetch...'))
 
-        # OPTIMIZATION: Extreme reduction for Render Free Tier (30s timeout)
-        # Only fetch 2 random clubs per request.
-        # The frontend "Chain Refresh" hits this endpoint 5 times, so total coverage is good.
+        # OPTIMIZATION: Atomic fetch (1 club per request)
+        # This is the only way to guarantee staying under the 30s timeout on free tier.
+        # Frontend calls this 5 times, so we get 5 clubs updated per user refresh.
         all_clubs = list(CLUB_CONFIG.keys())
         random.shuffle(all_clubs)
         
-        # Pick just 2 clubs
-        target_slugs = all_clubs[:2]
+        # Pick just 1 club
+        target_slugs = all_clubs[:1]
 
-        self.stdout.write(f"Targeting batch (2 clubs): {', '.join(target_slugs)}")
+        self.stdout.write(f"Targeting batch (1 club): {', '.join(target_slugs)}")
 
         for slug in target_slugs:
             config = CLUB_CONFIG.get(slug)
