@@ -1,10 +1,33 @@
 from rest_framework import viewsets, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Club, Post, Comment, Bookmark
 from .serializers import ClubSerializer, PostSerializer, CommentSerializer, BookmarkSerializer
 import random
+from django.core.management import call_command
+from django.conf import settings
+
+@api_view(['GET', 'POST'])
+@permission_classes([permissions.AllowAny])
+def trigger_news_fetch(request):
+    # Simple security check using SECRET_KEY or a specific CRON_KEY
+    # For simplicity, we check if a 'key' param matches part of our SECRET_KEY
+    # In production, use a dedicated env var like CRON_SECRET
+    
+    request_key = request.GET.get('key')
+    # Use the first 10 chars of SECRET_KEY as the "password" for this endpoint
+    expected_key = settings.SECRET_KEY[:10]
+    
+    if request_key != expected_key:
+        return Response({'status': 'unauthorized'}, status=403)
+
+    try:
+        # Run the management command
+        call_command('fetch_news')
+        return Response({'status': 'success', 'message': 'News fetch triggered'})
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=500)
 
 class ClubViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Club.objects.all()
