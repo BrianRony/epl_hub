@@ -106,8 +106,8 @@ export default function NewsCard({ post, onComment }) {
 
   return (
     <div className={`
-        relative h-full bg-white rounded-2xl overflow-hidden
-        border-t-[6px] ${borderColor}
+        relative h-full bg-white rounded-xl sm:rounded-2xl overflow-hidden
+        border-t-[4px] sm:border-t-[6px] ${borderColor}
         shadow-[0_2px_8px_rgba(0,0,0,0.04)]
         hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)]
         hover:-translate-y-1
@@ -116,11 +116,11 @@ export default function NewsCard({ post, onComment }) {
       `}>
         
         {/* Card Header: Club & Date */}
-        <div className="px-6 pt-5 pb-2 flex justify-between items-center">
-            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${clubTagStyle}`}>
+        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+            <span className={`px-2 sm:px-2.5 py-1 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider w-fit ${clubTagStyle}`}>
                 {post.club.name}
             </span>
-            <span className="text-xs font-medium text-slate-400">
+            <span className="text-[11px] sm:text-xs font-medium text-slate-400 whitespace-nowrap">
                 {dateStr} <span className="text-slate-300">•</span> {timeStr}
             </span>
         </div>
@@ -130,18 +130,18 @@ export default function NewsCard({ post, onComment }) {
             href={post.link || "#"} 
             target={post.link ? "_blank" : "_self"}
             rel="noopener noreferrer" 
-            className="px-6 py-2 flex-1 block focus:outline-none"
+            className="px-4 sm:px-6 py-2 sm:py-3 flex-1 block focus:outline-none"
         >
-          <h3 className="text-lg font-bold text-slate-900 leading-snug mb-3 group-hover:text-blue-700 transition-colors">
+          <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-2 sm:mb-3 group-hover:text-blue-700 transition-colors">
             {post.title}
           </h3>
-          <p className="text-slate-500 text-sm leading-relaxed line-clamp-3 mb-4">
+          <p className="text-slate-500 text-xs sm:text-sm leading-relaxed line-clamp-3 mb-3 sm:mb-4">
             {plainTextContent}
           </p>
         </a>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 mt-auto border-t border-slate-50 flex items-center justify-between bg-white">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 mt-auto border-t border-slate-50 flex items-center justify-between gap-2 bg-white">
              <div className="flex gap-3">
                  <button 
                     onClick={(e) => handleAction(e, onComment)}

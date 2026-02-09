@@ -2,12 +2,12 @@ import React from 'react';
 
 export default function Pagination({ prevPage, nextPage, onPageChange }) {
   // Common button styles
-  const btnBase = "px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2";
+  const btnBase = "px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-2";
   const btnActive = "bg-white text-slate-800 shadow-sm border border-slate-200 hover:border-blue-300 hover:text-blue-600 hover:shadow-md active:scale-95";
   const btnDisabled = "bg-slate-50 text-slate-300 border border-transparent cursor-not-allowed";
 
   return (
-    <div className="flex justify-center items-center gap-4 mt-16 mb-12">
+    <div className="flex justify-center items-center gap-3 sm:gap-4 mt-12 sm:mt-16 mb-8 sm:mb-12">
       <button
         onClick={() => onPageChange(prevPage)}
         disabled={!prevPage}

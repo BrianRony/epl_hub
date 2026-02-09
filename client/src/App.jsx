@@ -76,14 +76,14 @@ export default function App() {
         onFilterChange={handleFilter}
       />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {posts.map((post) => (
                 <NewsCard 
                     key={post.id} 
