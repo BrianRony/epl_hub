@@ -2,6 +2,7 @@ import feedparser
 import time
 import random
 import socket
+import os
 from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -15,6 +16,9 @@ socket.setdefaulttimeout(5.0)
 MAX_FEEDS_PER_CLUB = 4          # Keep feed count low
 MAX_ENTRIES_PER_FEED = 12       # Don't process huge RSS lists
 MAX_POSTS_PER_RUN = 25          # Hard stop to prevent slow runs
+
+# Detect if running on cloud hosting (Render/Vercel) vs local
+IS_PRODUCTION = os.getenv('RENDER') or os.getenv('VERCEL') or os.getenv('DATABASE_URL', '').startswith('postgres')
 
 # Configuration for URL generation
 CLUB_CONFIG = {
@@ -37,12 +41,14 @@ CLUB_CONFIG = {
     'manchester-city': {
         'sky': '11679',
         'guardian': 'manchester-city',
-        # Official feed (often blocks on free tier) -> try but don't rely on it
-        'official': 'https://www.mancity.com/meta/feeds/news',
-        # Extra reliable RSS sources as fallback
+        # IMPORTANT: Official feed removed for production - blocks cloud IPs
+        # Only include it locally for testing
+        'official': None if IS_PRODUCTION else 'https://www.mancity.com/meta/feeds/news',
+        # Reliable alternatives that work on Render/Vercel
         'extra_feeds': [
             'https://www.manchestereveningnews.co.uk/all-about/manchester-city-fc/?service=rss',
-            'https://cityxtra.co.uk/feed/',  # Fan source but usually fast
+            'https://cityxtra.co.uk/feed/',
+            'https://www.goal.com/en-us/feeds/news?fmt=rss&ICID=HP&team=manchester-city',  # Backup
         ]
     },
     'manchester-united': {
@@ -93,7 +99,7 @@ SOURCE_SCORES = {
 def parse_feed(url):
     """Parse RSS feed with user-agent to prevent 403 errors"""
     return feedparser.parse(url, request_headers={
-        "User-Agent": "Mozilla/5.0 (compatible; FootballNewsBot/1.0)"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
     })
 
 
@@ -105,7 +111,8 @@ class Command(BaseCommand):
         self.total_created = 0  # Track posts created in this run
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS('Starting dynamic news fetch...'))
+        env_info = "PRODUCTION (Render/Vercel)" if IS_PRODUCTION else "LOCAL"
+        self.stdout.write(self.style.SUCCESS(f'Starting dynamic news fetch [{env_info}]...'))
 
         all_clubs = list(CLUB_CONFIG.keys())
         random.shuffle(all_clubs)
@@ -142,8 +149,8 @@ class Command(BaseCommand):
             # 1. Build Feed List dynamically
             feeds = []
 
-            # Official feed (try but don't depend on it for Man City)
-            if 'official' in config:
+            # Official feed (skip if None - e.g., Man City in production)
+            if config.get('official'):
                 feeds.append(('official', config['official']))
 
             # Sky Sports
@@ -161,12 +168,19 @@ class Command(BaseCommand):
             else:
                 feeds.append(('mainstream', f"https://feeds.bbci.co.uk/sport/football/teams/{bbc_slug}/rss.xml"))
 
-            # Extra feeds (fan sites / aggregators - mostly for Man City backup)
+            # Extra feeds (fan sites / aggregators)
             for extra_url in config.get('extra_feeds', []):
                 feeds.append(('fan', extra_url))
 
             # FREE TIER SAFETY: Limit feeds per club
             feeds = feeds[:MAX_FEEDS_PER_CLUB]
+
+            # Special logging for Man City
+            if slug == 'manchester-city':
+                self.stdout.write(self.style.WARNING(
+                    f"  ℹ Man City mode: {'Skipping official feed (cloud IP blocked)' if IS_PRODUCTION else 'Using all feeds (local)'}"
+                ))
+                self.stdout.write(f"  ℹ Using {len(feeds)} feeds total")
 
             # 2. Process Feeds
             for source_type, feed_url in feeds:
@@ -191,12 +205,21 @@ class Command(BaseCommand):
         try:
             feed = parse_feed(feed_url)
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'  ✗ Failed: {feed_url} ({str(e)[:50]})'))
+            error_msg = str(e)[:80]
+            self.stdout.write(self.style.ERROR(f'  ✗ Failed: {feed_url}'))
+            self.stdout.write(f'    Error: {error_msg}')
             return
         
         elapsed = time.time() - start_time
-        if elapsed > 2.0:
+        if elapsed > 3.0:
             self.stdout.write(self.style.WARNING(f'  ⚠ Slow fetch ({elapsed:.2f}s): {feed_url}'))
+
+        # Check for HTTP errors
+        if hasattr(feed, 'status') and feed.status >= 400:
+            self.stdout.write(self.style.ERROR(
+                f'  ✗ HTTP {feed.status}: {feed_url}'
+            ))
+            return
 
         # Log how many entries found
         entry_count = len(feed.entries)
@@ -204,10 +227,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f'  ⚠ Zero entries found: {feed_url}'))
             return
         else:
-            self.stdout.write(f'  ✓ Found {entry_count} entries from {feed_url}')
+            self.stdout.write(f'  ✓ Found {entry_count} entries from {source_type} feed')
 
         # FREE TIER SAFETY: Limit entries processed per feed
         entries_to_process = feed.entries[:MAX_ENTRIES_PER_FEED]
+        created_count = 0
         
         for entry in entries_to_process:
             # Stop if we've hit the run limit
@@ -249,4 +273,7 @@ class Command(BaseCommand):
             )
             
             self.total_created += 1
-            self.stdout.write(f'    + {title[:50]}...')
+            created_count += 1
+
+        if created_count > 0:
+            self.stdout.write(f'    ✓ Created {created_count} new posts from this feed')
