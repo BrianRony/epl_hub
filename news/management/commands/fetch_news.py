@@ -1,5 +1,6 @@
 import feedparser
 import time
+import random
 from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -7,10 +8,7 @@ from django.db.models import Q
 from news.models import Club, Post
 
 # Configuration for URL generation
-# Format: 'slug': {'sky_id': '12345', 'guardian_tag': 'slug'}
-# BBC feed is always: https://feeds.bbci.co.uk/sport/football/teams/{slug}/rss.xml
-# Guardian feed is: https://www.theguardian.com/football/{guardian_tag}/rss
-# Sky feed is: https://www.skysports.com/rss/{sky_id}
+# ... (same config)
 
 CLUB_CONFIG = {
     # Big 6
@@ -55,11 +53,23 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Starting dynamic news fetch...'))
 
-        for slug, config in CLUB_CONFIG.items():
+        # OPTIMIZATION: Only fetch 5 random clubs + Premier League to prevent timeout on free tier
+        all_clubs = list(CLUB_CONFIG.keys())
+        random.shuffle(all_clubs)
+        
+        # Always include Premier League, then pick 4 others
+        target_slugs = ['premier-league'] + all_clubs[:4]
+        target_slugs = list(set(target_slugs)) # dedupe if PL was picked randomly
+
+        self.stdout.write(f"Targeting batch: {', '.join(target_slugs)}")
+
+        for slug in target_slugs:
+            config = CLUB_CONFIG.get(slug)
+            if not config: continue
+
             try:
                 club = Club.objects.get(slug=slug)
             except Club.DoesNotExist:
-                # self.stdout.write(self.style.WARNING(f'Club "{slug}" not found in DB. Run migrations.'))
                 continue
 
             self.stdout.write(f' Fetching for {club.name}...')
@@ -91,7 +101,7 @@ class Command(BaseCommand):
             for source_type, feed_url in feeds:
                 self.process_feed(club, source_type, feed_url)
 
-        self.stdout.write(self.style.SUCCESS(' Finished fetching news.'))
+        self.stdout.write(self.style.SUCCESS(' Finished fetching news batch.'))
 
     def process_feed(self, club, source_type, feed_url):
         credibility = SOURCE_SCORES.get(source_type, 1)
