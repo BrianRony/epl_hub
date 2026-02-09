@@ -58,15 +58,16 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('Starting dynamic news fetch...'))
 
-        # OPTIMIZATION: Only fetch 5 random clubs + Premier League to prevent timeout on free tier
+        # OPTIMIZATION: Extreme reduction for Render Free Tier (30s timeout)
+        # Only fetch 2 random clubs per request.
+        # The frontend "Chain Refresh" hits this endpoint 5 times, so total coverage is good.
         all_clubs = list(CLUB_CONFIG.keys())
         random.shuffle(all_clubs)
         
-        # Always include Premier League, then pick 4 others
-        target_slugs = ['premier-league'] + all_clubs[:4]
-        target_slugs = list(set(target_slugs)) # dedupe if PL was picked randomly
+        # Pick just 2 clubs
+        target_slugs = all_clubs[:2]
 
-        self.stdout.write(f"Targeting batch: {', '.join(target_slugs)}")
+        self.stdout.write(f"Targeting batch (2 clubs): {', '.join(target_slugs)}")
 
         for slug in target_slugs:
             config = CLUB_CONFIG.get(slug)
@@ -110,12 +111,18 @@ class Command(BaseCommand):
 
     def process_feed(self, club, source_type, feed_url):
         credibility = SOURCE_SCORES.get(source_type, 1)
+        start_time = time.time()
         try:
             feed = feedparser.parse(feed_url)
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'  Failed: {feed_url}'))
+            self.stdout.write(self.style.ERROR(f'  Failed: {feed_url} ({str(e)})'))
             return
+        
+        elapsed = time.time() - start_time
+        if elapsed > 2.0:
+            self.stdout.write(self.style.WARNING(f'  Slow fetch ({elapsed:.2f}s): {feed_url}'))
 
+        count = 0
         for entry in feed.entries:
             link = entry.get('link')
             title = entry.get('title', '').strip()
@@ -123,7 +130,7 @@ class Command(BaseCommand):
             if not link or not title:
                 continue
 
-            # Deduplication
+            # Deduplication check
             if Post.objects.filter(Q(link=link) | Q(title__iexact=title, club=club)).exists():
                 continue
 
