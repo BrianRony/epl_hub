@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { triggerRefresh } from '../services/api';
 
 const getClubGradient = (slug) => {
   const gradients = {
@@ -43,6 +44,20 @@ const getClubTextColor = (slug) => {
 }
 
 export default function Header({ clubs, selectedClub, onFilterChange }) {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await triggerRefresh();
+      alert("News refreshed! Content will appear shortly.");
+      window.location.reload(); // Simple reload to see new data
+    } catch (e) {
+      alert("Refresh failed. Try again later.");
+    }
+    setRefreshing(false);
+  };
+
   // 1. Prioritize and separate clubs
   const topSlugs = ['manchester-city', 'chelsea', 'arsenal', 'manchester-united', 'liverpool'];
   
@@ -72,6 +87,15 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className={`flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors ${refreshing ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <span className={`text-lg ${refreshing ? 'animate-spin' : ''}`}>🔄</span> 
+              {refreshing ? 'Refreshing...' : 'Refresh News'}
+            </button>
+
             <a 
               href="https://www.premierleague.com/tables" 
               target="_blank" 

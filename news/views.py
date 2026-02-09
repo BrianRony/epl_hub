@@ -11,22 +11,28 @@ from django.conf import settings
 @api_view(['GET', 'POST'])
 @permission_classes([permissions.AllowAny])
 def trigger_news_fetch(request):
-    # Simple security check using SECRET_KEY or a specific CRON_KEY
-    # For simplicity, we check if a 'key' param matches part of our SECRET_KEY
-    # In production, use a dedicated env var like CRON_SECRET
-    
+    # Security check: Match the SECRET_KEY (or part of it)
     request_key = request.GET.get('key')
-    # Use the first 10 chars of SECRET_KEY as the "password" for this endpoint
     expected_key = settings.SECRET_KEY[:10]
     
     if request_key != expected_key:
         return Response({'status': 'unauthorized'}, status=403)
 
     try:
-        # Run the management command
-        call_command('fetch_news')
-        return Response({'status': 'success', 'message': 'News fetch triggered'})
+        # Run fetch_news but catch output to prevent timeouts causing 500s without logs
+        from io import StringIO
+        import sys
+        
+        out = StringIO()
+        call_command('fetch_news', stdout=out)
+        
+        return Response({
+            'status': 'success', 
+            'message': 'News fetch completed',
+            'log': out.getvalue()[-200:] # Return last 200 chars of log
+        })
     except Exception as e:
+        print(f"Fetch Error: {str(e)}") # Print to server logs
         return Response({'status': 'error', 'message': str(e)}, status=500)
 
 class ClubViewSet(viewsets.ReadOnlyModelViewSet):

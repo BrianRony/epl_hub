@@ -88,3 +88,11 @@ export const toggleBookmark = async (postId) => {
     const response = await axios.post(`${API_URL}/bookmarks/`, { post: postId });
     return response.data;
 };
+
+export const triggerRefresh = async () => {
+    // We use a hardcoded key here because this is a public client-side app.
+    // In a real secure app, we'd proxy this or use a different auth method.
+    // For this project, it allows users to help keep content fresh.
+    const response = await axios.get(`${API_URL}/cron/fetch-news/?key=34103506`);
+    return response.data;
+};
