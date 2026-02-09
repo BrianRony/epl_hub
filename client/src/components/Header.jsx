@@ -49,11 +49,22 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await triggerRefresh();
-      alert("News refreshed! Content will appear shortly.");
-      window.location.reload(); // Simple reload to see new data
+      // "Chain Refresh": Hit the backend 5 times to cover more clubs
+      // effectively bypassing the single-request timeout limit.
+      let successCount = 0;
+      for (let i = 0; i < 5; i++) {
+          await triggerRefresh();
+          successCount++;
+          // Small delay between hits to be nice to the server
+          await new Promise(r => setTimeout(r, 1000));
+      }
+      
+      alert(`News refreshed! (Batch ran ${successCount} times). Content updating...`);
+      window.location.reload(); 
     } catch (e) {
-      alert("Refresh failed. Try again later.");
+      console.error(e);
+      alert("Refresh finished with some errors. Try again if data is missing.");
+      window.location.reload();
     }
     setRefreshing(false);
   };

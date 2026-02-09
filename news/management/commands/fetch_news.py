@@ -1,13 +1,18 @@
 import feedparser
 import time
 import random
+import socket # Import socket for global timeout
 from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Q
 from news.models import Club, Post
 
+# Set global timeout for all socket operations (fetching feeds) to 5 seconds
+socket.setdefaulttimeout(5.0)
+
 # Configuration for URL generation
+# ... (rest of the file remains the same)
 # ... (same config)
 
 CLUB_CONFIG = {
