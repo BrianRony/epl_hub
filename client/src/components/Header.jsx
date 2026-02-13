@@ -26,11 +26,11 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
         const height = 600;
         const left = (window.innerWidth - width) / 2;
         const top = (window.innerHeight - height) / 2;
-        window.open('https://totalsportek.army/', 'watchpl', `width=${width},height=${height},left=${left},top=${top}`);
+        window.open('https://soccer.totalsportek.army/', 'watchpl', `width=${width},height=${height},left=${left},top=${top}`);
       }
     } catch (error) {
       // Ultimate fallback: just open normally
-      window.open('https://totalsportek.army/', '_blank');
+      window.open('https://soccer.totalsportek.army/', '_blank');
     }
   };
 
