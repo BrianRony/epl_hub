@@ -106,24 +106,21 @@ export default function NewsCard({ post, onComment }) {
 
   return (
     <div className={`
-        relative h-full bg-white rounded-2xl overflow-hidden
-        border-l-4 ${borderColor}
-        shadow-lg hover:shadow-2xl
-        hover:scale-105 hover:-rotate-1
-        transition-all duration-500 ease-out
+        relative bg-white rounded-xl overflow-hidden
+        border ${borderColor} border-opacity-30
+        shadow-sm hover:shadow-md
+        transition-all duration-200 ease-out
         flex flex-col group cursor-pointer
-        backdrop-blur-sm bg-opacity-95
+        backdrop-blur-sm
+        hover:border-opacity-60
       `}>
-        {/* Gradient overlay on hover */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-        
         {/* Card Header: Club & Date */}
-        <div className="relative z-10 px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-slate-100/50 group-hover:border-slate-200 transition-colors">
-            <span className={`px-3 sm:px-3.5 py-1.5 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wider w-fit shadow-sm transition-transform duration-300 group-hover:scale-110 ${clubTagStyle}`}>
+        <div className="relative z-10 px-4 sm:px-5 pt-4 sm:pt-4 pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-slate-100 group-hover:border-slate-200 transition-colors">
+            <span className={`px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider w-fit transition-all duration-200 group-hover:scale-105 ${clubTagStyle}`}>
                 {post.club.name}
             </span>
-            <span className="text-[11px] sm:text-xs font-medium text-slate-400 whitespace-nowrap transition-colors group-hover:text-slate-600">
-                {dateStr} <span className="text-slate-300">•</span> {timeStr}
+            <span className="text-[10px] sm:text-xs font-medium text-slate-400 transition-colors group-hover:text-slate-500">
+                {dateStr} {timeStr}
             </span>
         </div>
 
@@ -132,37 +129,37 @@ export default function NewsCard({ post, onComment }) {
             href={post.link || "#"} 
             target={post.link ? "_blank" : "_self"}
             rel="noopener noreferrer" 
-            className="relative z-10 px-5 sm:px-6 py-4 sm:py-5 flex-1 block focus:outline-none group/link"
+            className="relative z-10 px-4 sm:px-5 py-3 sm:py-4 flex-1 block focus:outline-none group/link hover:bg-slate-50 transition-colors"
         >
-          <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight mb-3 sm:mb-4 group-hover/link:text-transparent group-hover/link:bg-clip-text group-hover/link:bg-gradient-to-r group-hover/link:from-blue-600 group-hover/link:to-purple-600 transition-all duration-300">
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug mb-2 group-hover/link:text-blue-600 transition-all duration-200">
             {post.title}
           </h3>
-          <p className="text-slate-500 text-xs sm:text-sm leading-relaxed line-clamp-3 mb-3 sm:mb-4 group-hover/link:text-slate-700 transition-colors duration-300">
+          <p className="text-slate-500 text-xs sm:text-sm leading-relaxed line-clamp-2 group-hover/link:text-slate-700 transition-colors duration-200">
             {plainTextContent}
           </p>
         </a>
 
-        {/* Footer Actions */}
-        <div className="relative z-10 px-5 sm:px-6 py-4 sm:py-5 mt-auto border-t border-slate-100/50 flex items-center justify-between gap-3 bg-gradient-to-r from-slate-50/50 to-blue-50/30 group-hover:from-slate-100/50 group-hover:to-blue-100/50 transition-all duration-500">
+        {/* Footer Actions - Compact */}
+        <div className="relative z-10 px-4 sm:px-5 py-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500 group-hover:bg-slate-50 transition-colors">
              <button 
                 onClick={(e) => handleAction(e, onComment)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 group/btn"
+                className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg transition-all duration-200 hover:scale-105"
                 title="Comments"
              >
-                 <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover/btn:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <svg className="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                  </svg>
-                 <span className="text-xs sm:text-sm font-bold">{post.comment_count || 0}</span>
+                 <span className="text-xs font-semibold">{post.comment_count || 0}</span>
              </button>
 
             <a 
                 href={post.link || "#"} 
                 target={post.link ? "_blank" : "_self"}
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 group/read"
+                className="ml-auto flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs transition-all duration-200 hover:scale-105 shadow-sm hover:shadow-md"
             >
                 Read
-                <svg className="w-4 h-4 transition-transform group-hover/read:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
             </a>

@@ -99,9 +99,9 @@ export default function App() {
   const bgGradient = selectedClub ? getClubBackgroundGradient(selectedClub) : "from-gradient-start";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 font-sans selection:bg-blue-200 selection:text-blue-900 transition-all duration-700">
-      {/* Animated background overlay for club colors */}
-      <div className={`fixed inset-0 bg-gradient-to-br ${bgGradient} pointer-events-none transition-all duration-700 z-0`} />
+    <div className="min-h-screen bg-white font-sans selection:bg-blue-200 selection:text-blue-900 transition-all duration-700">
+      {/* Subtle animated background for club colors */}
+      <div className={`fixed inset-0 bg-gradient-to-br ${bgGradient} pointer-events-none transition-all duration-700 z-0 opacity-5`} />
       
       <div className="relative z-10">
         <Header 
@@ -110,34 +110,34 @@ export default function App() {
           onFilterChange={handleFilter}
         />
 
-        <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-12">
+        <main className="container mx-auto max-w-2xl px-3 sm:px-4 py-8 sm:py-10">
           {loading ? (
             <div className="flex flex-col justify-center items-center py-32">
               <div className="relative w-16 h-16 mb-6">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-spin"></div>
-                <div className="absolute inset-2 bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 rounded-full flex items-center justify-center">
+                <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
                   <span className="text-2xl animate-bounce">📖</span>
                 </div>
               </div>
-              <p className="text-slate-500 font-semibold text-lg mt-4">Loading the latest stories...</p>
+              <p className="text-slate-500 font-semibold text-lg mt-4">Loading stories...</p>
             </div>
           ) : (
             <>
               {posts.length > 0 ? (
                 <>
-                  <div className="mb-8 sm:mb-12">
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2">
-                      {selectedClub ? `📰 Latest News` : `🌟 All Premier League News`}
+                  <div className="mb-8 text-center">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                      {selectedClub ? `📰 Latest News` : `🌟 All Premier League`}
                     </h2>
-                    <div className="h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"></div>
+                    <p className="text-slate-500 text-sm mt-1">{posts.length} stories</p>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12" style={{
+                  <div className="space-y-3 mb-8" style={{
                     animation: 'fadeInUp 0.6s ease-out'
                   }}>
                     {posts.map((post, idx) => (
                       <div key={post.id} style={{
-                        animation: `fadeInUp 0.6s ease-out ${idx * 0.1}s both`,
+                        animation: `fadeInUp 0.6s ease-out ${idx * 0.05}s both`,
                       }}>
                         <NewsCard 
                           post={post} 
@@ -151,15 +151,17 @@ export default function App() {
                 <div className="text-center py-32" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
                   <div className="text-6xl mb-4">⚽</div>
                   <p className="text-2xl font-bold text-slate-700 mb-2">No Stories Yet</p>
-                  <p className="text-slate-500 max-w-md mx-auto">No news found for this club. Check back soon for the latest updates and breaking stories!</p>
+                  <p className="text-slate-500 text-sm">Check back soon for updates!</p>
                 </div>
               )}
 
-              <Pagination 
-                prevPage={prevPage} 
-                nextPage={nextPage} 
-                onPageChange={loadNews} 
-              />
+              <div className="flex justify-center">
+                <Pagination 
+                  prevPage={prevPage} 
+                  nextPage={nextPage} 
+                  onPageChange={loadNews} 
+                />
+              </div>
             </>
           )}
         </main>
@@ -175,14 +177,6 @@ export default function App() {
           to {
             opacity: 1;
             transform: translateY(0);
-          }
-        }
-        @keyframes shimmer {
-          0% {
-            background-position: -1000px 0;
-          }
-          100% {
-            background-position: 1000px 0;
           }
         }
       `}</style>

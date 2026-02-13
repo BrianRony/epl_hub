@@ -46,16 +46,42 @@ const getClubTextColor = (slug) => {
 export default function Header({ clubs, selectedClub, onFilterChange }) {
   const [refreshing, setRefreshing] = useState(false);
 
+  const openWatchInPIP = async () => {
+    try {
+      const video = document.createElement('video');
+      video.src = 'https://totalsportek.army/';
+      video.style.display = 'none';
+      document.body.appendChild(video);
+      
+      // Try to open in Picture-in-Picture mode
+      if (document.pictureInPictureEnabled) {
+        try {
+          await video.requestPictureInPicture();
+        } catch (err) {
+          // If PIP not available, just open in new window
+          window.open('https://totalsportek.army/', '_blank', 'width=800,height=600');
+        }
+      } else {
+        // Fallback to embedded iframe in a popup window
+        const width = 800;
+        const height = 600;
+        const left = (window.innerWidth - width) / 2;
+        const top = (window.innerHeight - height) / 2;
+        window.open('https://totalsportek.army/', 'watchpl', `width=${width},height=${height},left=${left},top=${top}`);
+      }
+    } catch (error) {
+      // Ultimate fallback: just open normally
+      window.open('https://totalsportek.army/', '_blank');
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      // "Chain Refresh": Hit the backend 5 times to cover more clubs
-      // effectively bypassing the single-request timeout limit.
       let successCount = 0;
       for (let i = 0; i < 5; i++) {
           await triggerRefresh();
           successCount++;
-          // Small delay between hits to be nice to the server
           await new Promise(r => setTimeout(r, 1000));
       }
       
@@ -101,28 +127,27 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
     return top;
   }, [clubs]);
 
-  const isRestActive = selectedClub && !topSlugs.includes(selectedClub);
-
-  
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 md:py-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-4 sm:mb-6 gap-2">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-3xl sm:text-4xl md:text-5xl">📖</span>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-slate-900 leading-none">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
+      <div className="container mx-auto max-w-6xl px-3 sm:px-4 py-3 sm:py-4">
+        {/* Title and Action Buttons - Centered */}
+        <div className="flex flex-col items-center justify-center gap-4 mb-6">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-4xl sm:text-5xl md:text-6xl">📖</span>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter text-slate-900">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-red-600 to-purple-700">EPL BIBLE</span>
               </h1>
             </div>
-            <p className="text-slate-400 text-[11px] sm:text-xs font-semibold tracking-widest mt-1.5 uppercase">✨ The Ultimate Premier League Guide ✨</p>
+            <p className="text-slate-400 text-[10px] sm:text-xs font-semibold tracking-widest uppercase">✨ The Ultimate Premier League Guide ✨</p>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Action Buttons - Centered */}
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <button 
               onClick={handleRefresh}
               disabled={refreshing}
-              className={`hidden sm:flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 ${refreshing ? 'opacity-60 cursor-not-allowed scale-100' : ''}`}
+              className={`hidden sm:flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full text-sm font-bold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 ${refreshing ? 'opacity-60 cursor-not-allowed scale-100' : ''}`}
             >
               <span className={`text-lg ${refreshing ? 'animate-spin' : ''}`}>🔄</span> 
               <span className="hidden md:inline">{refreshing ? 'Syncing...' : 'Refresh Feed'}</span>
@@ -131,26 +156,28 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
             <button 
               onClick={handleRefreshMobile}
               disabled={refreshing}
-              className={`sm:hidden px-3 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg transition-all duration-200 transform hover:scale-105 ${refreshing ? 'opacity-60 cursor-not-allowed scale-100' : ''}`}
+              className={`sm:hidden px-3 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full text-xs font-bold transition-all duration-200 transform hover:scale-105 ${refreshing ? 'opacity-60 cursor-not-allowed scale-100' : ''}`}
               title="Refresh Feed"
             >
-              <span className={`text-lg ${refreshing ? 'animate-spin' : ''}`}>🔄</span>
+              <span className={`inline ${refreshing ? 'animate-spin' : ''}`}>🔄</span>
+              <span className="ml-1 align-middle">{refreshing ? 'Sync' : 'Refresh'}</span>
             </button>
 
-            <a 
-              href="https://www.premierleague.com/tables" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-slate-200 hover:border-blue-400 text-slate-700 hover:text-blue-600 rounded-xl text-sm font-bold transition-all duration-200"
+            <button 
+              onClick={openWatchInPIP}
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-full text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+              title="Watch Premier League (opens in new window or Picture-in-Picture)"
             >
-              <span className="text-lg">📊</span> <span className="hidden md:inline">League Table</span>
-            </a>
+              <span className="text-base sm:text-lg">📺</span> 
+              <span>Watch</span>
+              <span className="hidden sm:inline">PL</span>
+            </button>
           </div>
         </div>
 
-        {/* Filter Scroll Container */}
-        <div className="relative group mt-1">
-          <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 scrollbar-hide items-center">
+        {/* Filter Scroll Container - Team Selection */}
+        <div className="relative group mt-4">
+          <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scrollbar-hide items-center justify-center">
             
             {/* Top 5 Teams */}
             {topTeams.map((club) => {
@@ -163,10 +190,10 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
                   key={club.id}
                   onClick={() => onFilterChange(club.slug)}
                   className={`
-                    flex-shrink-0 px-3 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 transform border-2
+                    flex-shrink-0 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 transform border-2 whitespace-nowrap
                     ${isActive
-                      ? `bg-gradient-to-br ${gradient} ${textColor} shadow-xl ring-2 ring-offset-2 ring-white hover:scale-105 hover:shadow-2xl border-transparent`
-                      : "bg-white border-slate-300 text-slate-600 hover:border-slate-400 hover:shadow-md hover:scale-105"
+                      ? `bg-gradient-to-br ${gradient} ${textColor} shadow-lg ring-2 ring-offset-2 ring-white hover:scale-105 hover:shadow-xl border-transparent`
+                      : "bg-slate-100 border-slate-300 text-slate-600 hover:border-slate-400 hover:shadow-md hover:scale-105"
                     }
                   `}
                 >
@@ -176,27 +203,26 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
             })}
 
             {/* Separator Divider */}
-            <div className="hidden sm:block w-[2px] h-8 bg-gradient-to-b from-transparent via-slate-300 to-transparent mx-0.5"></div>
-            <div className="sm:hidden w-[1px] h-6 bg-slate-300 mx-0.5"></div>
+            <div className="w-[1px] h-6 bg-slate-300 mx-1"></div>
 
             {/* Rest of League Button */}
             <button
                 onClick={() => onFilterChange('premier-league')}
                 className={`
-                    flex-shrink-0 px-3 sm:px-6 py-2 sm:py-3 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 transform border-2
+                    flex-shrink-0 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 transform border-2 whitespace-nowrap
                     ${selectedClub === 'premier-league'
-                        ? "bg-gradient-to-r from-purple-600 to-emerald-500 text-white shadow-xl ring-2 ring-offset-2 ring-white hover:scale-105 hover:shadow-2xl border-transparent"
-                        : "bg-white border-slate-300 text-slate-600 hover:border-slate-400 hover:shadow-md hover:scale-105"
+                        ? "bg-gradient-to-r from-purple-600 to-emerald-500 text-white shadow-lg ring-2 ring-offset-2 ring-white hover:scale-105 hover:shadow-xl border-transparent"
+                        : "bg-slate-100 border-slate-300 text-slate-600 hover:border-slate-400 hover:shadow-md hover:scale-105"
                     }
                 `}
             >
-                <span className="hidden sm:inline">🏆 All </span><span className="sm:hidden">🏆</span> Teams
+                <span>🏆</span> <span className="hidden sm:inline">All</span> Teams
             </button>
             
           </div>
           
           {/* Fade effect on right for scrolling indication */}
-          <div className="absolute right-0 top-0 bottom-2 w-8 sm:w-12 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
         </div>
       </div>
     </header>
