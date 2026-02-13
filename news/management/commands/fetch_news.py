@@ -1,6 +1,5 @@
 import feedparser
 import time
-import random
 import socket
 import os
 from datetime import datetime
@@ -9,13 +8,18 @@ from django.utils import timezone
 from django.db.models import Q
 from news.models import Club, Post
 
-# Set global timeout for all socket operations (fetching feeds) to 5 seconds
-socket.setdefaulttimeout(5.0)
+# Set global timeout for all socket operations (fetching feeds) to 10 seconds
+# Some RSS feeds are slow, so we need a reasonable timeout
+socket.setdefaulttimeout(10.0)
 
 # FREE TIER LIMITS - Prevent timeouts and DB spam
 MAX_FEEDS_PER_CLUB = 4          # Keep feed count low
 MAX_ENTRIES_PER_FEED = 12       # Don't process huge RSS lists
-MAX_POSTS_PER_RUN = 25          # Hard stop to prevent slow runs
+MAX_POSTS_PER_RUN = 400         # Increased to support all clubs with ~10+ posts each
+MIN_POSTS_PER_CLUB = 10         # Target minimum articles per club
+
+# Big 6 clubs (prioritized)
+BIG_6_CLUBS = ['manchester-city', 'manchester-united', 'arsenal', 'liverpool', 'chelsea', 'tottenham-hotspur']
 
 # Detect if running on cloud hosting (Render/Vercel) vs local
 IS_PRODUCTION = os.getenv('RENDER') or os.getenv('VERCEL') or os.getenv('DATABASE_URL', '').startswith('postgres')
@@ -97,10 +101,17 @@ SOURCE_SCORES = {
 
 
 def parse_feed(url):
-    """Parse RSS feed with user-agent to prevent 403 errors"""
-    return feedparser.parse(url, request_headers={
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-    })
+    """Parse RSS feed with user-agent and timeout to prevent 403 errors and hangs"""
+    try:
+        # feedparser respects socket.setdefaulttimeout() which is set to 10 seconds
+        return feedparser.parse(url, 
+            request_headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            }
+        )
+    except (socket.timeout, TimeoutError, ConnectionError):
+        # Return empty dict on timeout to gracefully skip this feed
+        return {'entries': [], 'status': 408}
 
 
 class Command(BaseCommand):
@@ -111,169 +122,200 @@ class Command(BaseCommand):
         self.total_created = 0  # Track posts created in this run
 
     def handle(self, *args, **kwargs):
-        env_info = "PRODUCTION (Render/Vercel)" if IS_PRODUCTION else "LOCAL"
-        self.stdout.write(self.style.SUCCESS(f'Starting dynamic news fetch [{env_info}]...'))
+        try:
+            env_info = "PRODUCTION (Render/Vercel)" if IS_PRODUCTION else "LOCAL"
+            self.stdout.write(self.style.SUCCESS(f'Starting dynamic news fetch [{env_info}]...'))
 
-        all_clubs = list(CLUB_CONFIG.keys())
-        random.shuffle(all_clubs)
-        
-        # Pick just 1 club per run (good for free tier cron jobs)
-        target_slugs = all_clubs[:1]
+            # Delete all existing posts to keep only latest news (free tier DB optimization)
+            Post.objects.all().delete()
+            self.stdout.write(self.style.WARNING('✓ Cleared all existing posts from database.'))
 
-        self.stdout.write(f"Targeting batch (1 club): {', '.join(target_slugs)}")
-
-        for slug in target_slugs:
-            # Check if we've hit the run limit
-            if self.total_created >= MAX_POSTS_PER_RUN:
-                self.stdout.write(self.style.WARNING(
-                    f"✓ Reached MAX_POSTS_PER_RUN ({MAX_POSTS_PER_RUN}), stopping early."
-                ))
-                break
-
-            config = CLUB_CONFIG.get(slug)
-            if not config: 
-                continue
-
-            # Auto-create club if missing (Fixes empty DB issue on Render)
-            club_name = slug.replace('-', ' ').title().replace('And', '&')
-            club, created = Club.objects.get_or_create(
-                slug=slug, 
-                defaults={'name': club_name}
-            )
+            # Sort clubs: Big 6 first, then others
+            all_clubs = list(CLUB_CONFIG.keys())
+            big_6_first = sorted(all_clubs, key=lambda x: (x not in BIG_6_CLUBS, all_clubs.index(x)))
             
-            if created:
-                self.stdout.write(self.style.WARNING(f'✓ Created missing club: {club.name}'))
+            self.stdout.write(f"Processing {len(big_6_first)} clubs (Big 6 prioritized): {', '.join(big_6_first[:6])}...")
 
-            self.stdout.write(f'→ Fetching for {club.name}...')
-            
-            # 1. Build Feed List dynamically
-            feeds = []
-
-            # Official feed (skip if None - e.g., Man City in production)
-            if config.get('official'):
-                feeds.append(('official', config['official']))
-
-            # Sky Sports
-            if 'sky' in config:
-                feeds.append(('mainstream', f"https://www.skysports.com/rss/{config['sky']}"))
-
-            # Guardian
-            if 'guardian' in config:
-                feeds.append(('mainstream', f"https://www.theguardian.com/football/{config['guardian']}/rss"))
-
-            # BBC
-            bbc_slug = config.get('bbc_slug', slug)
-            if config.get('no_bbc_team_path'):
-                feeds.append(('mainstream', "https://feeds.bbci.co.uk/sport/football/premier-league/rss.xml"))
-            else:
-                feeds.append(('mainstream', f"https://feeds.bbci.co.uk/sport/football/teams/{bbc_slug}/rss.xml"))
-
-            # Extra feeds (fan sites / aggregators)
-            for extra_url in config.get('extra_feeds', []):
-                feeds.append(('fan', extra_url))
-
-            # FREE TIER SAFETY: Limit feeds per club
-            feeds = feeds[:MAX_FEEDS_PER_CLUB]
-
-            # Special logging for Man City
-            if slug == 'manchester-city':
-                self.stdout.write(self.style.WARNING(
-                    f"  ℹ Man City mode: {'Skipping official feed (cloud IP blocked)' if IS_PRODUCTION else 'Using all feeds (local)'}"
-                ))
-                self.stdout.write(f"  ℹ Using {len(feeds)} feeds total")
-
-            # 2. Process Feeds
-            for source_type, feed_url in feeds:
-                # Stop if we've hit the run limit
+            for slug in big_6_first:
+                # Check if we've hit the run limit
                 if self.total_created >= MAX_POSTS_PER_RUN:
                     self.stdout.write(self.style.WARNING(
-                        f"  ✓ Reached MAX_POSTS_PER_RUN ({MAX_POSTS_PER_RUN}), skipping remaining feeds."
+                        f"✓ Reached MAX_POSTS_PER_RUN ({MAX_POSTS_PER_RUN}), stopping early."
                     ))
                     break
-                    
-                self.process_feed(club, source_type, feed_url)
 
-        self.stdout.write(self.style.SUCCESS(
-            f'✓ Finished! Created {self.total_created} new posts.'
-        ))
+                config = CLUB_CONFIG.get(slug)
+                if not config: 
+                    continue
+
+                try:
+                    # Auto-create club if missing (Fixes empty DB issue on Render)
+                    club_name = slug.replace('-', ' ').title().replace('And', '&')
+                    club, created = Club.objects.get_or_create(
+                        slug=slug, 
+                        defaults={'name': club_name}
+                    )
+                    
+                    if created:
+                        self.stdout.write(self.style.WARNING(f'✓ Created missing club: {club.name}'))
+
+                    self.process_club(club, config, slug)
+                    
+                except (socket.timeout, TimeoutError, ConnectionError) as e:
+                    self.stdout.write(self.style.ERROR(f'✗ Timeout processing {slug}: {str(e)[:50]}'))
+                    continue
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f'✗ Error processing {slug}: {str(e)[:50]}'))
+                    continue
+
+            self.stdout.write(self.style.SUCCESS(
+                f'✓ Finished! Created {self.total_created} new posts.'
+            ))
+            
+        except (socket.timeout, TimeoutError, ConnectionError) as e:
+            self.stdout.write(self.style.ERROR(f'✗ Fatal timeout: {str(e)[:80]}'))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'✗ Fatal error: {str(e)[:80]}'))
+
+    def process_club(self, club, config, slug):
+        """Process a single club and fetch its news feeds"""
+        self.stdout.write(f'→ Fetching for {club.name}...')
+        
+        # 1. Build Feed List dynamically
+        feeds = []
+
+        # Official feed (skip if None - e.g., Man City in production)
+        if config.get('official'):
+            feeds.append(('official', config['official']))
+
+        # Sky Sports
+        if 'sky' in config:
+            feeds.append(('mainstream', f"https://www.skysports.com/rss/{config['sky']}"))
+
+        # Guardian
+        if 'guardian' in config:
+            feeds.append(('mainstream', f"https://www.theguardian.com/football/{config['guardian']}/rss"))
+
+        # BBC
+        bbc_slug = config.get('bbc_slug', slug)
+        if config.get('no_bbc_team_path'):
+            feeds.append(('mainstream', "https://feeds.bbci.co.uk/sport/football/premier-league/rss.xml"))
+        else:
+            feeds.append(('mainstream', f"https://feeds.bbci.co.uk/sport/football/teams/{bbc_slug}/rss.xml"))
+
+        # Extra feeds (fan sites / aggregators)
+        for extra_url in config.get('extra_feeds', []):
+            feeds.append(('fan', extra_url))
+
+        # FREE TIER SAFETY: Limit feeds per club
+        feeds = feeds[:MAX_FEEDS_PER_CLUB]
+
+        # Special logging for Man City
+        if slug == 'manchester-city':
+            self.stdout.write(self.style.WARNING(
+                f"  ℹ Man City mode: {'Skipping official feed (cloud IP blocked)' if IS_PRODUCTION else 'Using all feeds (local)'}"
+            ))
+            self.stdout.write(f"  ℹ Using {len(feeds)} feeds total")
+
+        # 2. Process Feeds
+        for source_type, feed_url in feeds:
+            # Stop if we've hit the run limit
+            if self.total_created >= MAX_POSTS_PER_RUN:
+                self.stdout.write(self.style.WARNING(
+                    f"  ✓ Reached MAX_POSTS_PER_RUN ({MAX_POSTS_PER_RUN}), skipping remaining feeds."
+                ))
+                break
+                
+            self.process_feed(club, source_type, feed_url)
 
     def process_feed(self, club, source_type, feed_url):
         """Process a single RSS feed with timeout and error handling"""
-        credibility = SOURCE_SCORES.get(source_type, 1)
-        start_time = time.time()
-        
         try:
-            feed = parse_feed(feed_url)
-        except Exception as e:
-            error_msg = str(e)[:80]
-            self.stdout.write(self.style.ERROR(f'  ✗ Failed: {feed_url}'))
-            self.stdout.write(f'    Error: {error_msg}')
-            return
-        
-        elapsed = time.time() - start_time
-        if elapsed > 3.0:
-            self.stdout.write(self.style.WARNING(f'  ⚠ Slow fetch ({elapsed:.2f}s): {feed_url}'))
-
-        # Check for HTTP errors
-        if hasattr(feed, 'status') and feed.status >= 400:
-            self.stdout.write(self.style.ERROR(
-                f'  ✗ HTTP {feed.status}: {feed_url}'
-            ))
-            return
-
-        # Log how many entries found
-        entry_count = len(feed.entries)
-        if entry_count == 0:
-            self.stdout.write(self.style.WARNING(f'  ⚠ Zero entries found: {feed_url}'))
-            return
-        else:
-            self.stdout.write(f'  ✓ Found {entry_count} entries from {source_type} feed')
-
-        # FREE TIER SAFETY: Limit entries processed per feed
-        entries_to_process = feed.entries[:MAX_ENTRIES_PER_FEED]
-        created_count = 0
-        
-        for entry in entries_to_process:
-            # Stop if we've hit the run limit
-            if self.total_created >= MAX_POSTS_PER_RUN:
-                break
-
-            link = entry.get('link')
-            title = entry.get('title', '').strip()
-
-            if not link or not title:
-                continue
-
-            # Deduplication check
-            if Post.objects.filter(Q(link=link) | Q(title__iexact=title, club=club)).exists():
-                continue
-
-            # Date handling
-            if hasattr(entry, 'published_parsed') and entry.published_parsed:
-                published = timezone.make_aware(
-                    datetime.fromtimestamp(time.mktime(entry.published_parsed))
-                )
-            else:
-                published = timezone.now()
-
-            # Ranking calculation
-            age_hours = max((timezone.now() - published).total_seconds() / 3600, 0.1)
-            score = credibility * (10 / age_hours)
-
-            # Create the post
-            Post.objects.create(
-                club=club,
-                title=title,
-                content=entry.get('summary', ''),
-                link=link,
-                publication_date=published,
-                source=source_type,
-                credibility_score=credibility,
-                rank_score=score
-            )
+            credibility = SOURCE_SCORES.get(source_type, 1)
+            start_time = time.time()
             
-            self.total_created += 1
-            created_count += 1
+            try:
+                feed = parse_feed(feed_url)
+            except Exception as e:
+                error_msg = str(e)[:80]
+                self.stdout.write(self.style.ERROR(f'  ✗ Failed: {feed_url}'))
+                self.stdout.write(f'    Error: {error_msg}')
+                return
+            
+            elapsed = time.time() - start_time
+            if elapsed > 3.0:
+                self.stdout.write(self.style.WARNING(f'  ⚠ Slow fetch ({elapsed:.2f}s): {feed_url}'))
 
-        if created_count > 0:
-            self.stdout.write(f'    ✓ Created {created_count} new posts from this feed')
+            # Check for timeout or other HTTP errors
+            if feed.get('status') == 408:
+                self.stdout.write(self.style.WARNING(f'  ⚠ Timeout (skipping): {feed_url}'))
+                return
+            
+            # Check for HTTP errors
+            if hasattr(feed, 'status') and feed.status >= 400:
+                self.stdout.write(self.style.ERROR(
+                    f'  ✗ HTTP {feed.status}: {feed_url}'
+                ))
+                return
+
+            # Log how many entries found
+            entry_count = len(feed.entries)
+            if entry_count == 0:
+                self.stdout.write(self.style.WARNING(f'  ⚠ Zero entries found: {feed_url}'))
+                return
+            else:
+                self.stdout.write(f'  ✓ Found {entry_count} entries from {source_type} feed')
+
+            # FREE TIER SAFETY: Limit entries processed per feed
+            entries_to_process = feed.entries[:MAX_ENTRIES_PER_FEED]
+            created_count = 0
+            
+            for entry in entries_to_process:
+                # Stop if we've hit the run limit
+                if self.total_created >= MAX_POSTS_PER_RUN:
+                    break
+
+                link = entry.get('link')
+                title = entry.get('title', '').strip()
+
+                if not link or not title:
+                    continue
+
+                # Deduplication check
+                if Post.objects.filter(Q(link=link) | Q(title__iexact=title, club=club)).exists():
+                    continue
+
+                # Date handling
+                if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                    published = timezone.make_aware(
+                        datetime.fromtimestamp(time.mktime(entry.published_parsed))
+                    )
+                else:
+                    published = timezone.now()
+
+                # Ranking calculation
+                age_hours = max((timezone.now() - published).total_seconds() / 3600, 0.1)
+                score = credibility * (10 / age_hours)
+
+                # Create the post
+                Post.objects.create(
+                    club=club,
+                    title=title,
+                    content=entry.get('summary', ''),
+                    link=link,
+                    publication_date=published,
+                    source=source_type,
+                    credibility_score=credibility,
+                    rank_score=score
+                )
+                
+                self.total_created += 1
+                created_count += 1
+
+            if created_count > 0:
+                self.stdout.write(f'    ✓ Created {created_count} new posts from this feed')
+                
+        except (socket.timeout, TimeoutError, ConnectionError) as e:
+            self.stdout.write(self.style.WARNING(f'  ⚠ Timeout in feed processing: {str(e)[:40]}'))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'  ✗ Error processing feed: {str(e)[:50]}'))
