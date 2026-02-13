@@ -1,50 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { triggerRefresh } from '../services/api';
-
-const getClubGradient = (slug) => {
-  const gradients = {
-    // Big 6 + Challengers
-    arsenal: "from-red-600 via-red-500 to-white",
-    "aston-villa": "from-red-900 via-blue-800 to-blue-900",
-    chelsea: "from-blue-700 via-blue-600 to-white",
-    everton: "from-blue-800 via-blue-600 to-white",
-    liverpool: "from-red-700 via-red-600 to-red-800",
-    "manchester-city": "from-sky-300 via-sky-400 to-white",
-    "manchester-united": "from-red-700 via-red-600 to-black",
-    newcastle: "from-black via-gray-800 to-gray-500",
-    "tottenham-hotspur": "from-blue-900 via-gray-100 to-white", 
-    spurs: "from-blue-900 via-gray-100 to-white",
-    "west-ham": "from-red-800 via-blue-400 to-blue-800",
-    wolves: "from-yellow-500 via-yellow-400 to-black",
-
-    // Rest of League
-    brighton: "from-blue-500 via-white to-blue-500",
-    brentford: "from-red-600 via-white to-black",
-    "crystal-palace": "from-blue-700 via-red-600 to-blue-800",
-    fulham: "from-black via-white to-black",
-    "nottingham-forest": "from-red-600 via-red-500 to-white",
-    bournemouth: "from-red-700 via-black to-red-600",
-    leicester: "from-blue-600 via-blue-500 to-white",
-    southampton: "from-red-600 via-white to-red-600",
-    ipswich: "from-blue-600 via-blue-500 to-white",
-    
-    // General
-    "premier-league": "from-purple-900 via-purple-600 to-emerald-400",
-  };
-  return gradients[slug] || "from-slate-700 to-slate-500";
-};
-
-const getClubTextColor = (slug) => {
-   // For active state text color contrast against the gradient
-   const lightText = ['arsenal', 'aston-villa', 'chelsea', 'everton', 'liverpool', 'manchester-united', 'newcastle', 'west-ham', 'wolves', 'tottenham-hotspur', 'spurs', 'nottingham-forest', 'bournemouth', 'crystal-palace', 'brentford', 'leicester', 'ipswich', 'premier-league', 'fulham'];
-   
-   if (['manchester-city', 'brighton', 'southampton'].includes(slug)) return 'text-slate-900'; 
-   
-   return 'text-white';
-}
 
 export default function Header({ clubs, selectedClub, onFilterChange }) {
   const [refreshing, setRefreshing] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const openWatchInPIP = async () => {
     try {
@@ -113,20 +72,6 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
     setRefreshing(false);
   };
 
-  // 1. Prioritize and separate clubs
-  const topSlugs = ['manchester-city', 'chelsea', 'arsenal', 'manchester-united', 'liverpool'];
-  
-  const topTeams = useMemo(() => {
-    const clubMap = new Map(clubs.map(c => [c.slug, c]));
-    const top = [];
-    topSlugs.forEach(slug => {
-        if (clubMap.has(slug)) {
-            top.push(clubMap.get(slug));
-        }
-    });
-    return top;
-  }, [clubs]);
-
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transition-all duration-300">
       <div className="container mx-auto max-w-6xl px-3 sm:px-4 py-3 sm:py-4">
@@ -175,55 +120,100 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
           </div>
         </div>
 
-        {/* Filter Scroll Container - Team Selection */}
-        <div className="relative group mt-4">
-          <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-3 scrollbar-hide items-center justify-center">
-            
-            {/* Top 5 Teams */}
-            {topTeams.map((club) => {
-              const isActive = selectedClub === club.slug;
-              const gradient = getClubGradient(club.slug);
-              const textColor = isActive ? getClubTextColor(club.slug) : 'text-slate-600';
-
-              return (
-                <button
-                  key={club.id}
-                  onClick={() => onFilterChange(club.slug)}
-                  className={`
-                    flex-shrink-0 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 transform border-2 whitespace-nowrap
-                    ${isActive
-                      ? `bg-gradient-to-br ${gradient} ${textColor} shadow-lg ring-2 ring-offset-2 ring-white hover:scale-105 hover:shadow-xl border-transparent`
-                      : "bg-slate-100 border-slate-300 text-slate-600 hover:border-slate-400 hover:shadow-md hover:scale-105"
-                    }
-                  `}
-                >
-                  {club.name}
-                </button>
-              );
-            })}
-
-            {/* Separator Divider */}
-            <div className="w-[1px] h-6 bg-slate-300 mx-1"></div>
-
-            {/* Rest of League Button */}
+        {/* Club Selector: mobile dropdown + md+ centered inline selector */}
+        <div className="relative mt-4">
+          {/* Mobile: original dropdown trigger (hidden on md+) */}
+          <div className="md:hidden">
             <button
-                onClick={() => onFilterChange('premier-league')}
-                className={`
-                    flex-shrink-0 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider transition-all duration-300 transform border-2 whitespace-nowrap
-                    ${selectedClub === 'premier-league'
-                        ? "bg-gradient-to-r from-purple-600 to-emerald-500 text-white shadow-lg ring-2 ring-offset-2 ring-white hover:scale-105 hover:shadow-xl border-transparent"
-                        : "bg-slate-100 border-slate-300 text-slate-600 hover:border-slate-400 hover:shadow-md hover:scale-105"
-                    }
-                `}
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg font-bold text-slate-700 text-sm transition-all duration-200"
             >
-                <span>🏆</span> <span className="hidden sm:inline">All</span> Teams
+              <span className="text-lg">⚽</span>
+              <span className="truncate max-w-xs">
+                {selectedClub === 'premier-league'
+                  ? '🏆 All Teams'
+                  : selectedClub
+                    ? clubs.find(c => c.slug === selectedClub)?.name || 'Select Club'
+                    : 'Select Club'
+                }
+              </span>
+              <svg className={`w-4 h-4 ml-auto transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
             </button>
-            
+
+            {/* Dropdown Menu (mobile) */}
+            {dropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-lg shadow-lg z-40 max-h-96 overflow-y-auto" style={{ animation: 'slideDown 0.3s ease-out' }}>
+                <button
+                  onClick={() => { onFilterChange('premier-league'); setDropdownOpen(false); }}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-b border-slate-100 last:border-b-0 ${selectedClub === 'premier-league' ? 'bg-purple-50 text-purple-700 font-bold' : 'text-slate-700 hover:bg-slate-50'}`}>
+                  <span className="text-lg">🏆</span>
+                  <span className="font-bold">All Teams</span>
+                </button>
+
+                <div className="border-b border-slate-100 px-2 py-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase px-2 py-1 mb-1">Big 5</p>
+                  {clubs.filter(c => ['manchester-city','chelsea','arsenal','manchester-united','liverpool'].includes(c.slug)).map(club => (
+                    <button key={club.id} onClick={() => { onFilterChange(club.slug); setDropdownOpen(false); }} className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 transition-colors text-sm ${selectedClub === club.slug ? 'bg-blue-100 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>
+                      {selectedClub === club.slug && <span>✓</span>}
+                      {club.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="px-2 py-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase px-2 py-1 mb-1">Other Teams</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {clubs.filter(c => !['manchester-city','chelsea','arsenal','manchester-united','liverpool'].includes(c.slug)).map(club => (
+                      <button key={club.id} onClick={() => { onFilterChange(club.slug); setDropdownOpen(false); }} className={`text-left px-3 py-2 rounded text-xs transition-colors ${selectedClub === club.slug ? 'bg-blue-100 text-blue-700 font-bold' : 'text-slate-700 hover:bg-slate-100'}`}>
+                        {club.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {dropdownOpen && <div className="fixed inset-0 z-30" onClick={() => setDropdownOpen(false)} />}
           </div>
-          
-          {/* Fade effect on right for scrolling indication */}
-          <div className="absolute right-0 top-0 bottom-0 w-8 sm:w-12 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
+
+          {/* Desktop / Wide screens: centered inline selector */}
+          <div className="hidden md:flex items-center justify-center">
+            <select
+              value={selectedClub || 'premier-league'}
+              onChange={(e) => onFilterChange(e.target.value)}
+              className="w-96 px-4 py-3 bg-white border border-slate-200 rounded-lg shadow-sm text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              aria-label="Select Club"
+            >
+              <option value="premier-league">🏆 All Teams</option>
+              <optgroup label="Big 5">
+                {clubs.filter(c => ['manchester-city','chelsea','arsenal','manchester-united','liverpool'].includes(c.slug)).map(club => (
+                  <option key={club.id} value={club.slug}>{club.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Other Teams">
+                {clubs.filter(c => !['manchester-city','chelsea','arsenal','manchester-united','liverpool'].includes(c.slug)).map(club => (
+                  <option key={club.id} value={club.slug}>{club.name}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
         </div>
+
+        {/* Animations */}
+        <style>{`
+          @keyframes slideDown {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
       </div>
     </header>
   );
