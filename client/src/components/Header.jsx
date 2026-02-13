@@ -114,7 +114,7 @@ export default function Header({ clubs, selectedClub, onFilterChange }) {
               title="Watch Premier League (opens in new window or Picture-in-Picture)"
             >
               <span className="text-base sm:text-lg">📺</span> 
-              <span>Watch</span>
+              <span>Watch Live PL</span>
               <span className="hidden sm:inline">PL</span>
             </button>
           </div>
